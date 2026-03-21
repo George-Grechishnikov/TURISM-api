@@ -28,6 +28,11 @@ const BUDGET_TOOLTIP_TOP = 1354
 
 export function QuizPage() {
   const navigate = useNavigate()
+
+  useEffect(() => {
+    useTripStore.getState().clearSequentialAiChat()
+  }, [])
+
   const {
     companionsTags,
     moodTags,

@@ -1,9 +1,13 @@
 import { create } from 'zustand'
 
 import { buildRoute as buildRouteApi, patchRoute as patchRouteApi } from '../lib/api'
+import { clearSequentialAiTourSession, markSequentialAiTourSession } from '../lib/sequentialAiSession'
 
 /** PATCH идут строго по одному — иначе два запроса читают одно состояние БД и затирают друг друга. */
 let patchQueue = Promise.resolve()
+
+/** Не даём параллельно дергать build на первую остановку (двойной клик → несколько маршрутов). */
+let startRouteWithPlaceInFlight = false
 
 function enqueuePatch(task) {
   const run = patchQueue.then(task, task)
@@ -25,6 +29,10 @@ export const useTripStore = create((set, get) => ({
   /** PATCH маршрута (добавить/убрать точку) — отдельно от loading сборки */
   patching: false,
   error: null,
+  /** Вход с «Последовательный тур с AI»: первое добавление — только выбранное место, без автосборки */
+  sequentialAiMode: false,
+  /** Показать карточку «AI-Чат» на /route после входа с главной (последовательный тур) */
+  sequentialAiChatActive: false,
 
   toggleTag: (field, tag) => {
     const cur = get()[field]
@@ -35,8 +43,14 @@ export const useTripStore = create((set, get) => ({
   setTags: (field, tags) => set({ [field]: tags }),
   setBudget: (min, max) => set({ budgetMin: min, budgetMax: max }),
 
+  clearSequentialAiChat: () => {
+    clearSequentialAiTourSession()
+    set({ sequentialAiChatActive: false })
+  },
+
   buildRoute: async () => {
-    set({ loading: true, error: null })
+    get().clearSequentialAiChat()
+    set({ loading: true, error: null, sequentialAiMode: false })
     try {
       const { companionsTags, moodTags, durationTags, extraTags, budgetMin, budgetMax } = get()
       const data = await buildRouteApi({
@@ -62,6 +76,9 @@ export const useTripStore = create((set, get) => ({
   },
 
   startRouteWithPlace: async (placeId) => {
+    if (startRouteWithPlaceInFlight || get().loading) return undefined
+    startRouteWithPlaceInFlight = true
+    const manualSequential = get().sequentialAiMode
     set({ loading: true, error: null })
     try {
       const data = await buildRouteApi({
@@ -73,17 +90,21 @@ export const useTripStore = create((set, get) => ({
         budget_min: get().budgetMin,
         budget_max: get().budgetMax,
         max_stops: 6,
+        manual_sequential: manualSequential,
       })
       set({
         route: data.route,
         places: data.places,
         loading: false,
+        sequentialAiMode: false,
       })
       return data
     } catch (e) {
       const msg = e.response?.data?.detail || e.message || 'Ошибка маршрута'
       set({ error: String(msg), loading: false })
       throw e
+    } finally {
+      startRouteWithPlaceInFlight = false
     }
   },
 
@@ -113,4 +134,18 @@ export const useTripStore = create((set, get) => ({
   removeStop: (placeId) => get().patchRoute([], [placeId]),
 
   addStop: (placeId) => get().patchRoute([placeId], []),
+
+  /** Пустой маршрут: все места в «Добавить», остановок нет (последовательная сборка с AI) */
+  clearRouteSession: () => {
+    markSequentialAiTourSession()
+    set({
+      route: null,
+      places: [],
+      error: null,
+      loading: false,
+      patching: false,
+      sequentialAiMode: true,
+      sequentialAiChatActive: true,
+    })
+  },
 }))

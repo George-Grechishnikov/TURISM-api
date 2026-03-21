@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useLocation } from 'react-router-dom'
 
@@ -31,10 +31,43 @@ const Q3 = [
   { value: 'purchase', label: 'Покупка' },
 ]
 
-function WineGlassIcon({ className = '' }) {
+/** Иконка бокала: почти пустой — тонкий остаток вина у дна, контур чаши читается на фоне круга */
+function SommelierFabWineGlass() {
+  const bowlClipId = useId().replace(/:/g, '')
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <path d="M7 3h10l-1 8.5c0 2.5-2 4.5-4 4.5s-4-2-4-4.5L7 3zm2.2 2l.55 5.2c.15 1.3 1.1 2.3 2.25 2.3s2.1-1 2.25-2.3L14.8 5H9.2zM8 20h8v2H8v-2z" />
+    <svg
+      className="pointer-events-none absolute left-[34px] top-[14px] z-20 h-[73px] w-[34px]"
+      viewBox="0 0 42 91"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden
+    >
+      <defs>
+        <clipPath id={bowlClipId}>
+          <rect x="5" y="6" width="32" height="29" rx="6" />
+        </clipPath>
+      </defs>
+      {/* Ножка */}
+      <rect x="16" y="50" width="10" height="37" rx="1.5" fill="#FFFFFF" />
+      {/* Подставка */}
+      <rect x="5" y="86" width="32" height="4.5" rx="2" fill="#FFFFFF" />
+      {/* Чаша: полупрозрачная «пустота» + белый контур — виден красный фон круга */}
+      <rect
+        x="2.5"
+        y="2.5"
+        width="37"
+        height="35"
+        rx="8"
+        fill="rgba(255, 255, 255, 0.14)"
+        stroke="#FFFFFF"
+        strokeWidth="2.25"
+        strokeLinejoin="round"
+      />
+      {/* Остаток вина у дна (клип внутри чаши — только нижняя полоска) */}
+      <g clipPath={`url(#${bowlClipId})`}>
+        <ellipse cx="21" cy="42" rx="17" ry="12" fill="#4A0D14" />
+        <ellipse cx="21" cy="33.5" rx="12" ry="2.2" fill="#F5C2C8" opacity="0.85" />
+      </g>
     </svg>
   )
 }
@@ -42,6 +75,8 @@ function WineGlassIcon({ className = '' }) {
 export function SommelierAssistant() {
   const location = useLocation()
   const openRequestId = useSommelierUiStore((s) => s.openRequestId)
+  const sommelierCloseSignal = useSommelierUiStore((s) => s.sommelierCloseSignal)
+  const signalCloseSequentialAiChat = useSommelierUiStore((s) => s.signalCloseSequentialAiChat)
   const route = useTripStore((s) => s.route)
   const routePlaces = useTripStore((s) => s.places)
   const patching = useTripStore((s) => s.patching)
@@ -82,8 +117,15 @@ export function SommelierAssistant() {
   }, [location.pathname])
 
   useEffect(() => {
-    if (openRequestId > 0) setOpen(true)
-  }, [openRequestId])
+    if (sommelierCloseSignal > 0) setOpen(false)
+  }, [sommelierCloseSignal])
+
+  useEffect(() => {
+    if (openRequestId > 0) {
+      signalCloseSequentialAiChat()
+      setOpen(true)
+    }
+  }, [openRequestId, signalCloseSequentialAiChat])
 
   const runRecommend = async (finalAnswers) => {
     setLoading(true)
@@ -149,31 +191,65 @@ export function SommelierAssistant() {
     >
       <button
         type="button"
-        onClick={() => (open ? handleClose() : handleOpen())}
+        data-turizm-sommelier-fab="v3-wine-glass"
+        data-vite-build={import.meta.env.VITE_APP_BUILD_ID ?? 'dev'}
+        onClick={() => {
+          if (open) handleClose()
+          else {
+            signalCloseSequentialAiChat()
+            handleOpen()
+          }
+        }}
         style={{
           pointerEvents: 'auto',
           position: 'absolute',
           bottom: 20,
           right: 20,
           zIndex: 2,
-          width: 56,
-          height: 56,
-          borderRadius: 9999,
-          color: '#fff',
-          background: 'linear-gradient(145deg, #9e2d52 0%, #451526 100%)',
-          boxShadow: '0 4px 28px rgba(69, 21, 38, 0.45)',
-          border: '2px solid rgba(255,255,255,0.42)',
+          width: 101,
+          height: 130,
+          padding: 0,
+          margin: 0,
+          border: 'none',
+          background: 'transparent',
+          cursor: 'pointer',
+          filter: 'drop-shadow(0 6px 20px rgba(69, 21, 38, 0.22))',
         }}
-        className="flex items-center justify-center transition hover:brightness-110 hover:scale-105 active:scale-95"
+        className="group relative transition hover:brightness-[1.03] hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-wine-500 focus-visible:ring-offset-2"
         aria-label={open ? 'Закрыть сомелье' : 'Виртуальный сомелье'}
         title="Виртуальный сомелье"
       >
-        <WineGlassIcon className="h-7 w-7" />
+        {/* Rectangle 37161 — белая подложка */}
+        <span
+          className="pointer-events-none absolute bottom-0 left-[10px] z-0 flex h-[94px] w-[82px] items-end justify-center rounded-[21px] bg-white"
+          aria-hidden
+        />
+        {/* Ellipse 185 — красный круг */}
+        <span
+          className="pointer-events-none absolute left-0 top-0 z-10 h-[101px] w-[101px] rounded-full bg-[#B12030]"
+          aria-hidden
+        />
+        <SommelierFabWineGlass />
+        {/* Подпись: размер и шрифт инлайном — тот же бандл, что и разметка; не «мигает» из‑за рассинхрона кэша CSS/JS */}
+        <span
+          className="pointer-events-none absolute bottom-[14px] left-1/2 z-30 max-w-none -translate-x-1/2 whitespace-nowrap text-center"
+          data-ii-label-px="10"
+          style={{
+            fontFamily: "'Montserrat', system-ui, sans-serif",
+            fontSize: 10,
+            fontWeight: 700,
+            lineHeight: 1,
+            letterSpacing: '0.03em',
+            color: '#000000',
+          }}
+        >
+          ИИ-сомелье
+        </span>
       </button>
 
       {open && (
         <div
-          style={{ pointerEvents: 'auto', position: 'absolute', bottom: 96, right: 20, zIndex: 3 }}
+          style={{ pointerEvents: 'auto', position: 'absolute', bottom: 168, right: 20, zIndex: 3 }}
           className="flex w-[min(calc(100vw-2.5rem),400px)] max-h-[min(72dvh,560px)] flex-col overflow-hidden rounded-2xl border border-stone-200/90 bg-[#faf7f2]/98 shadow-card-lg backdrop-blur-md"
           role="dialog"
           aria-labelledby="sommelier-title"
@@ -289,7 +365,7 @@ export function SommelierAssistant() {
                   <span
                     className={`text-[10px] font-semibold uppercase tracking-wide ${result.used_ai ? 'text-emerald-700' : 'text-stone-500'}`}
                   >
-                    {result.used_ai ? 'Yandex AI' : 'Локальная подборка'}
+                    {result.used_ai ? 'Яндекс ИИ' : 'Локальная подборка'}
                   </span>
                 </div>
                 <p className="text-sm leading-relaxed text-stone-800">{result.explanation}</p>

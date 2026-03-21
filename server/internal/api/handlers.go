@@ -98,17 +98,18 @@ func (s *Server) handleSommelier(w http.ResponseWriter, r *http.Request) {
 }
 
 type buildBody struct {
-	CompanionsTags  []string  `json:"companions_tags"`
-	MoodTags        []string  `json:"mood_tags"`
-	DurationTags    []string  `json:"duration_tags"`
-	ExtraTags       []string  `json:"extra_tags"`
-	IncludePlaceIDs []string  `json:"include_place_ids"`
-	ExcludePlaceIDs []string  `json:"exclude_place_ids"`
-	MaxStops        *int      `json:"max_stops"`
-	RouteRadiusKm   *float64  `json:"route_radius_km"`
-	MaxLegKm        *float64  `json:"max_leg_km"`
-	StartDate       string    `json:"start_date"`
-	EndDate         string    `json:"end_date"`
+	CompanionsTags   []string `json:"companions_tags"`
+	MoodTags         []string `json:"mood_tags"`
+	DurationTags     []string `json:"duration_tags"`
+	ExtraTags        []string `json:"extra_tags"`
+	IncludePlaceIDs  []string `json:"include_place_ids"`
+	ExcludePlaceIDs  []string `json:"exclude_place_ids"`
+	MaxStops         *int     `json:"max_stops"`
+	RouteRadiusKm    *float64 `json:"route_radius_km"`
+	MaxLegKm         *float64 `json:"max_leg_km"`
+	StartDate        string   `json:"start_date"`
+	EndDate          string   `json:"end_date"`
+	ManualSequential bool     `json:"manual_sequential"`
 }
 
 func (s *Server) handleRouteBuild(w http.ResponseWriter, r *http.Request) {
@@ -136,6 +137,68 @@ func (s *Server) handleRouteBuild(w http.ResponseWriter, r *http.Request) {
 	}
 	inc := parseUUIDs(body.IncludePlaceIDs)
 	exc := parseUUIDs(body.ExcludePlaceIDs)
+
+	// Одна точка без опроса (как startRouteWithPlace): любая категория, без автоподмеса сервисов.
+	// Явный manual_sequential ИЛИ пустые теги — чтобы старый фронт и гонка до выставления флага не падали в «Нет винодельни».
+	noQuizTags := len(body.CompanionsTags) == 0 && len(body.MoodTags) == 0 && len(body.DurationTags) == 0 && len(body.ExtraTags) == 0
+	minimalFirstStop := len(inc) == 1 && len(exc) == 0 && (body.ManualSequential || noQuizTags)
+	if minimalFirstStop {
+		p, err := store.GetPublishedPlace(r.Context(), s.Pool, inc[0])
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				writeErr(w, 404, "Место не найдено.")
+				return
+			}
+			writeErr(w, 500, "db error")
+			return
+		}
+		ordered := []models.Place{*p}
+		wsnap := weather.FetchTripWeather(weather.DefaultLat, weather.DefaultLon, body.StartDate, body.EndDate)
+		weatherMode, _ := wsnap["weather_mode"].(string)
+		wsnap["clothing_tips"] = llm.GenerateClothingTips(s.Cfg.YandexFolderID, s.Cfg.YandexIAMToken, wsnap)
+		legs := routeengine.ComputeTransferLegs(ordered)
+		legsJSON, _ := json.Marshal(legs)
+		idsJSON, _ := json.Marshal([]string{p.ID.String()})
+		weatherJSON, _ := json.Marshal(wsnap)
+		ct, _ := json.Marshal(body.CompanionsTags)
+		mt, _ := json.Marshal(body.MoodTags)
+		dt, _ := json.Marshal(body.DurationTags)
+		et, _ := json.Marshal(body.ExtraTags)
+		rid := uuid.New()
+		plan := store.RoutePlan{
+			ID:              rid,
+			VisitorID:       vid,
+			CompanionsTags:  ct,
+			MoodTags:        mt,
+			DurationTags:    dt,
+			ExtraTags:       et,
+			OrderedPlaceIDs: idsJSON,
+			Legs:            legsJSON,
+			LLMNarrative:    "",
+			WeatherSnapshot: weatherJSON,
+		}
+		if err := store.CreateRoutePlan(r.Context(), s.Pool, plan); err != nil {
+			writeErr(w, 500, "db error")
+			return
+		}
+		saved, err := store.GetRoutePlanForVisitor(r.Context(), s.Pool, rid, vid)
+		if err != nil {
+			writeErr(w, 500, "db error")
+			return
+		}
+		placeObjs := make([]map[string]any, 0, len(ordered))
+		for i := range ordered {
+			obj := placeListJSON(&ordered[i])
+			obj["weather_fit"] = routeengine.PlaceWeatherFit(ordered[i], weatherMode)
+			placeObjs = append(placeObjs, obj)
+		}
+		writeJSON(w, 201, map[string]any{
+			"route":  mapRoutePlan(saved),
+			"places": placeObjs,
+		})
+		return
+	}
+
 	wineries, err := store.FilterPublishedWineries(r.Context(), s.Pool, inc, exc)
 	if err != nil {
 		writeErr(w, 500, "db error")

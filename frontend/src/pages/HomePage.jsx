@@ -1,9 +1,15 @@
 import { Link } from 'react-router-dom'
+
+import { ROUTE_ENTRY_SEQUENTIAL_AI } from '../lib/routeEntry'
+import { useTripStore } from '../store/tripStore'
 import heroImage from '../assets/hero.png'
 import homeHoverAI from '../assets/home-hover-ai.png'
 import homeHoverQuiz from '../assets/home-hover-quiz.png'
 
 export function HomePage() {
+  const primeSequentialAiRoute = () => useTripStore.getState().clearRouteSession()
+  const leaveSequentialAiForQuiz = () => useTripStore.getState().clearSequentialAiChat()
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-white">
       <div className="relative mx-auto h-[1080px] w-[1920px] max-w-none origin-top-left overflow-hidden">
@@ -37,6 +43,8 @@ export function HomePage() {
         <div className="group absolute left-[398px] top-[540px] h-[515px] w-[490px]">
           <Link
             to="/route"
+            state={{ routeEntry: ROUTE_ENTRY_SEQUENTIAL_AI }}
+            onClick={primeSequentialAiRoute}
             aria-label="Перейти к последовательному AI-маршруту"
             className="pointer-events-none absolute inset-0 z-40 rounded-[55px] opacity-0 transition duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:pointer-events-auto group-hover:opacity-100"
           />
@@ -55,6 +63,8 @@ export function HomePage() {
           </p>
           <Link
             to="/route"
+            state={{ routeEntry: ROUTE_ENTRY_SEQUENTIAL_AI }}
+            onClick={primeSequentialAiRoute}
             className="absolute left-0 top-[378px] flex h-[135px] w-[490px] items-center justify-center rounded-[55px] bg-[#fcf3b4]/[0.86] px-8 text-center font-['Montserrat'] text-[35px] font-bold leading-[100.79%] tracking-[0.03em] text-[#595959] hover:brightness-110 group-hover:pointer-events-none group-hover:opacity-0"
           >
             Последовательный
@@ -66,6 +76,7 @@ export function HomePage() {
         <div className="group absolute left-[987px] top-[538px] h-[515px] w-[490px]">
           <Link
             to="/quiz"
+            onClick={leaveSequentialAiForQuiz}
             aria-label="Перейти к опросу"
             className="pointer-events-none absolute inset-0 z-40 rounded-[55px] opacity-0 transition duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:pointer-events-auto group-hover:opacity-100"
           />
@@ -84,6 +95,7 @@ export function HomePage() {
           </p>
           <Link
             to="/quiz"
+            onClick={leaveSequentialAiForQuiz}
             className="absolute left-[6px] top-[380px] flex h-[135px] w-[490px] items-center justify-center rounded-[55px] bg-[#fcf3b4]/[0.86] px-8 text-center font-['Montserrat'] text-[35px] font-bold leading-[100.79%] tracking-[0.03em] text-[#595959] hover:brightness-110 group-hover:pointer-events-none group-hover:opacity-0"
           >
             Тур на основе ваших

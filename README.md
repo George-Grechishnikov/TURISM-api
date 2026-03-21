@@ -52,6 +52,15 @@ docker compose up --build
 
 Переменные (см. `.env.docker.example`): `VITE_YANDEX_MAPS_API_KEY` подставляется **на этапе сборки** образа `web`; после смены ключа выполните `docker compose build web --no-cache`. После любых изменений в коде `frontend/` тоже нужна пересборка `web`, иначе откроется старая версия UI (например, без обновлённых виджетов).
 
+**Если в браузере «ничего не изменилось» после правок UI:** вы смотрите **старый билд внутри образа `web`**, либо **`docker compose build web` падал с ошибкой** (тогда Docker оставляет предыдущий образ — UI не меняется). На **Alpine** у Vite 8 бывает ошибка `Cannot find module '@rolldown/binding-linux-x64-musl'`; в этом проекте стадия сборки фронта в `docker/web/Dockerfile` использует **`node:22-bookworm-slim`**. Пошагово: [docs/ЕСЛИ_UI_НЕ_МЕНЯЕТСЯ.md](docs/ЕСЛИ_UI_НЕ_МЕНЯЕТСЯ.md).
+
+Из корня репозитория:
+
+- **Windows (PowerShell):** `.\rebuild-web.ps1`
+- **Вручную:** `docker compose build web --no-cache` затем `docker compose up -d web --force-recreate`
+
+После этого — жёсткое обновление страницы (**Ctrl+F5**). Для проверки: в инспекторе у плавающей кнопки сомелье на `/route` есть атрибут `data-turizm-sommelier-fab`.
+
 При первом старте Go-backend сам наполняет демо-точками БД, если нет опубликованных виноделен.
 
 Полезно: `docker compose logs -f backend`, проверка API: `curl http://localhost:8080/api/places/`, остановка — `docker compose down` (том `postgres_data` сохраняет БД).

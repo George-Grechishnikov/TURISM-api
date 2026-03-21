@@ -114,6 +114,7 @@ export function RouteMap({ places, routeColor, onMarkerClick, onMarkerHoverPrevi
         const map = new ymaps.Map(containerRef.current, {
           center: [45.0355, 38.9753],
           zoom: 9,
+          type: 'yandex#hybrid',
           controls: [],
         })
         map.controls.add('zoomControl', { position: { right: 16, top: 88 } })

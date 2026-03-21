@@ -43,13 +43,19 @@ services:
     expose:
       - "8000"
 
+  # Явный тег: compose подставит свежесобранный образ, а не случайный pull с registry
   web:
+    image: turizm-web:latest
+    pull_policy: never
     build:
       context: .
       dockerfile: docker/web/Dockerfile
       args:
         VITE_YANDEX_MAPS_API_KEY: ${VITE_YANDEX_MAPS_API_KEY:-}
         VITE_API_BASE: ""
+        # Задайте уникальное значение при каждой пересборке: .\rebuild-web.ps1
+        # или: $env:CACHE_BUST = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+        CACHE_BUST: ${CACHE_BUST:-0}
     ports:
       - "${WEB_PORT:-8080}:80"
     depends_on:
