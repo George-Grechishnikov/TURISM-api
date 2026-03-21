@@ -1,0 +1,60 @@
+# Имя проекта в Docker Desktop (вкладка Containers / группа сервисов)
+name: turizm
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-turizm}
+      POSTGRES_USER: ${POSTGRES_USER:-turizm}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-turizm}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-turizm} -d ${POSTGRES_DB:-turizm}"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-docker-dev-change-me}
+      DB_NAME: ${POSTGRES_DB:-turizm}
+      DB_USER: ${POSTGRES_USER:-turizm}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-turizm}
+      DB_HOST: db
+      DB_PORT: "5432"
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080}
+      YANDEX_CLOUD_FOLDER_ID: ${YANDEX_CLOUD_FOLDER_ID:-}
+      YANDEX_IAM_TOKEN: ${YANDEX_IAM_TOKEN:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 25s
+    expose:
+      - "8000"
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile
+      args:
+        VITE_YANDEX_MAPS_API_KEY: ${VITE_YANDEX_MAPS_API_KEY:-}
+        VITE_API_BASE: ""
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
