@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTripStore } from '../store/tripStore'
 
@@ -15,6 +15,16 @@ const EXTRA = [
   'С детьми',
   'Трансфер',
 ]
+
+/** Диапазон бюджета на слайдере (совпадает с min/max у input) */
+const BUDGET_SLIDER_MIN = 5000
+const BUDGET_SLIDER_MAX = 1_000_000
+const BUDGET_SLIDER_STEP = 5000
+const BUDGET_TRACK_LEFT = 152
+const BUDGET_TRACK_WIDTH = 712
+const BUDGET_TRACK_TOP = 1461
+const BUDGET_SLIDER_CENTER_Y = 1476
+const BUDGET_TOOLTIP_TOP = 1354
 
 export function QuizPage() {
   const navigate = useNavigate()
@@ -33,10 +43,19 @@ export function QuizPage() {
     error,
   } = useTripStore()
 
+  /** Какой ползунок «сверху», чтобы тянуть min/max, когда ручки близко */
+  const [budgetThumbOnTop, setBudgetThumbOnTop] = useState('max')
+
   const canSubmit = companionsTags.length && moodTags.length && durationTags.length
   const budgetReady = budgetMin <= budgetMax
-  const leftSliderMax = Math.max(5000, budgetMax - 5000)
-  const rightSliderMin = Math.min(1000000, budgetMin + 5000)
+
+  const budgetSpan = BUDGET_SLIDER_MAX - BUDGET_SLIDER_MIN
+  const minRatio = (budgetMin - BUDGET_SLIDER_MIN) / budgetSpan
+  const maxRatio = (budgetMax - BUDGET_SLIDER_MIN) / budgetSpan
+  const rangeFillLeft = BUDGET_TRACK_LEFT + minRatio * BUDGET_TRACK_WIDTH
+  const rangeFillWidth = Math.max(0, (maxRatio - minRatio) * BUDGET_TRACK_WIDTH)
+  const minTooltipLeft = BUDGET_TRACK_LEFT + minRatio * BUDGET_TRACK_WIDTH
+  const maxTooltipLeft = BUDGET_TRACK_LEFT + maxRatio * BUDGET_TRACK_WIDTH
 
   const extraRows = useMemo(() => {
     const chunked = []
@@ -155,34 +174,83 @@ export function QuizPage() {
             </div>
           </section>
 
-          <div className="absolute left-[151px] top-[1354px] flex h-[64px] w-[209px] items-center justify-center rounded-[27px] bg-[#B1202F] text-[20px] font-bold leading-[100.79%] tracking-[0.03em] text-white">
+          <div
+            className="pointer-events-none absolute z-20 flex h-[64px] min-w-[200px] max-w-[280px] items-center justify-center rounded-[27px] bg-[#B12030] px-4 text-center text-[20px] font-bold leading-[100.79%] tracking-[0.03em] text-white"
+            style={{
+              left: `${minTooltipLeft}px`,
+              top: `${BUDGET_TOOLTIP_TOP}px`,
+              transform: 'translateX(-50%)',
+            }}
+          >
             От {budgetMin.toLocaleString('ru-RU')} руб
           </div>
-          <div className="absolute left-[608px] top-[1354px] flex h-[64px] w-[209px] items-center justify-center rounded-[27px] bg-[#B1202F] text-[20px] font-bold leading-[100.79%] tracking-[0.03em] text-white">
+          <div
+            className="pointer-events-none absolute z-20 flex h-[64px] min-w-[200px] max-w-[280px] items-center justify-center rounded-[27px] bg-[#B12030] px-4 text-center text-[20px] font-bold leading-[100.79%] tracking-[0.03em] text-white"
+            style={{
+              left: `${maxTooltipLeft}px`,
+              top: `${BUDGET_TOOLTIP_TOP}px`,
+              transform: 'translateX(-50%)',
+            }}
+          >
             До {budgetMax.toLocaleString('ru-RU')}
           </div>
 
-          <div className="absolute left-[152px] top-[1461px] h-[30px] w-[712px] rounded-[15px] bg-[#FFC4C9]" />
+          <div
+            className="pointer-events-none absolute z-[1] h-[30px] rounded-[15px] bg-[#FFC4C9]"
+            style={{
+              left: `${BUDGET_TRACK_LEFT}px`,
+              top: `${BUDGET_TRACK_TOP}px`,
+              width: `${BUDGET_TRACK_WIDTH}px`,
+            }}
+          />
+          <div
+            className="pointer-events-none absolute z-[2] h-[30px] rounded-[15px] bg-[#FFB0B8]"
+            style={{
+              left: `${rangeFillLeft}px`,
+              top: `${BUDGET_TRACK_TOP}px`,
+              width: `${Math.max(0, rangeFillWidth)}px`,
+            }}
+          />
           <input
             type="range"
-            min={5000}
-            max={leftSliderMax}
-            step={5000}
+            min={BUDGET_SLIDER_MIN}
+            max={BUDGET_SLIDER_MAX}
+            step={BUDGET_SLIDER_STEP}
             value={budgetMin}
-            onChange={(e) => setBudget(Number(e.target.value), budgetMax)}
-            className="absolute left-[152px] top-[1476px] z-20 h-0 w-[712px] -translate-y-1/2 appearance-none bg-transparent [&::-webkit-slider-thumb]:h-[66px] [&::-webkit-slider-thumb]:w-[66px] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-[11px] [&::-webkit-slider-thumb]:border-[#B12030] [&::-webkit-slider-thumb]:bg-white"
+            onPointerDown={() => setBudgetThumbOnTop('min')}
+            onChange={(e) => {
+              const v = Number(e.target.value)
+              setBudget(Math.min(v, budgetMax - BUDGET_SLIDER_STEP), budgetMax)
+            }}
+            className="quiz-budget-range absolute w-[712px] -translate-y-1/2"
+            style={{
+              left: `${BUDGET_TRACK_LEFT}px`,
+              top: `${BUDGET_SLIDER_CENTER_Y}px`,
+              zIndex: budgetThumbOnTop === 'min' ? 45 : 35,
+            }}
+            aria-label="Минимальный бюджет"
           />
           <input
             type="range"
-            min={rightSliderMin}
-            max={1000000}
-            step={5000}
+            min={BUDGET_SLIDER_MIN}
+            max={BUDGET_SLIDER_MAX}
+            step={BUDGET_SLIDER_STEP}
             value={budgetMax}
-            onChange={(e) => setBudget(budgetMin, Number(e.target.value))}
-            className="absolute left-[152px] top-[1476px] z-30 h-0 w-[712px] -translate-y-1/2 appearance-none bg-transparent [&::-webkit-slider-thumb]:h-[66px] [&::-webkit-slider-thumb]:w-[66px] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-[11px] [&::-webkit-slider-thumb]:border-[#B12030] [&::-webkit-slider-thumb]:bg-white"
+            onPointerDown={() => setBudgetThumbOnTop('max')}
+            onChange={(e) => {
+              const v = Number(e.target.value)
+              setBudget(budgetMin, Math.max(v, budgetMin + BUDGET_SLIDER_STEP))
+            }}
+            className="quiz-budget-range absolute w-[712px] -translate-y-1/2"
+            style={{
+              left: `${BUDGET_TRACK_LEFT}px`,
+              top: `${BUDGET_SLIDER_CENTER_Y}px`,
+              zIndex: budgetThumbOnTop === 'max' ? 45 : 35,
+            }}
+            aria-label="Максимальный бюджет"
           />
-          <p className="absolute left-[166px] top-[1499px] text-[20px] font-bold leading-[100.79%] tracking-[0.03em] text-black">min</p>
-          <p className="absolute left-[807px] top-[1499px] text-[20px] font-bold leading-[100.79%] tracking-[0.03em] text-black">max</p>
+          <p className="absolute left-[166px] top-[1525px] text-[20px] font-bold leading-[100.79%] tracking-[0.03em] text-black">min</p>
+          <p className="absolute left-[807px] top-[1525px] text-[20px] font-bold leading-[100.79%] tracking-[0.03em] text-black">max</p>
 
           <button
             type="submit"

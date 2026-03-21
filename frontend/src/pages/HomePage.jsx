@@ -14,8 +14,8 @@ export function HomePage() {
         />
 
         <header className="absolute left-1/2 top-[23px] flex -translate-x-1/2 items-start gap-[83px] font-['Montserrat'] uppercase text-[#FCF3B4]">
-          <div className="text-[40px] font-bold leading-[100.79%] tracking-[0.03em]">ETERNIUM</div>
-          <nav className="mt-[2px] flex gap-[70px] text-[30px] font-medium leading-[100.79%] tracking-[0.03em]">
+          <div className="text-[40px] font-bold leading-[100.79%] tracking-[0.03em]">ЕТЕРНИУМ</div>
+          <nav className="mt-[2px] flex gap-[70px] whitespace-nowrap text-[30px] font-medium leading-[100.79%] tracking-[0.03em]">
             <span>о нас</span>
             <span>маршруты</span>
             <span>винодельни</span>
@@ -30,10 +30,8 @@ export function HomePage() {
           ТУР В 3 КЛИКА
         </h1>
 
-        <p className="absolute left-1/2 top-[432px] w-[830px] -translate-x-1/2 text-center font-['Montserrat'] text-[30px] font-medium leading-[100.79%] tracking-[0.03em] text-[#FCF3B4]">
-          составь полностью продуманный план тура
-          <br />
-          на любой срок и под любое настроение
+        <p className="absolute left-1/2 top-[400px] w-[830px] -translate-x-1/2 text-center font-['Montserrat'] text-[30px] font-medium leading-[100.79%] tracking-[0.03em] text-[#FCF3B4]">
+          Перестаньте искать - начните чувствовать
         </p>
 
         <div className="group absolute left-[398px] top-[540px] h-[515px] w-[490px]">

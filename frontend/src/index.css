@@ -72,3 +72,60 @@
     transform: translateX(220%) skewX(-12deg);
   }
 }
+
+/* /quiz — двойной range: прозрачный нативный трек, общий розовый трек в вёрстке */
+input.quiz-budget-range {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  margin: 0;
+  height: 66px;
+  pointer-events: none;
+}
+
+input.quiz-budget-range:focus {
+  outline: none;
+}
+
+input.quiz-budget-range::-webkit-slider-runnable-track {
+  height: 30px;
+  background: transparent;
+  border: none;
+  border-radius: 15px;
+}
+
+input.quiz-budget-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  width: 66px;
+  height: 66px;
+  margin-top: -18px;
+  border-radius: 9999px;
+  border: 11px solid #b12030;
+  background: #fff;
+  cursor: grab;
+  pointer-events: auto;
+}
+
+input.quiz-budget-range:active::-webkit-slider-thumb {
+  cursor: grabbing;
+}
+
+input.quiz-budget-range::-moz-range-track {
+  height: 30px;
+  background: transparent;
+  border: none;
+  border-radius: 15px;
+}
+
+input.quiz-budget-range::-moz-range-thumb {
+  box-sizing: border-box;
+  width: 66px;
+  height: 66px;
+  border-radius: 9999px;
+  border: 11px solid #b12030;
+  background: #fff;
+  cursor: grab;
+  pointer-events: auto;
+}
