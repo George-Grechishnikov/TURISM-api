@@ -1,55 +1,98 @@
 import { Link } from 'react-router-dom'
+import heroImage from '../assets/hero.png'
+import homeHoverAI from '../assets/home-hover-ai.png'
+import homeHoverQuiz from '../assets/home-hover-quiz.png'
 
 export function HomePage() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#faf7f2] bg-mesh-hero">
-      <div
-        className="pointer-events-none absolute -right-32 top-1/4 h-[420px] w-[420px] rounded-full bg-wine-200/30 blur-3xl"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute -left-24 bottom-0 h-[320px] w-[320px] rounded-full bg-amber-200/25 blur-3xl"
-        aria-hidden
-      />
-
-      <div className="relative z-10 mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center px-6 py-20 text-center">
-        <p
-          className="mb-3 text-[11px] font-semibold uppercase tracking-[0.28em] text-wine-700/90 opacity-0 animate-fade-up"
-          style={{ animationDelay: '0.05s' }}
-        >
-          Краснодарский край
-        </p>
-        <h1
-          className="font-display text-[2.35rem] font-semibold leading-[1.12] text-wine-950 sm:text-5xl sm:leading-[1.08] opacity-0 animate-fade-up"
-          style={{ animationDelay: '0.12s' }}
-        >
-          Винные маршруты
-          <span className="mt-1 block bg-gradient-to-r from-wine-800 via-amber-800 to-wine-700 bg-clip-text text-transparent sm:mt-0 sm:inline sm:pl-2">
-            под ваше настроение
-          </span>
-        </h1>
-        <p
-          className="mt-6 max-w-md text-base leading-relaxed text-stone-600 opacity-0 animate-fade-up"
-          style={{ animationDelay: '0.22s' }}
-        >
-          Три вопроса, теги и карта: погода и пожелания учитываются, чтобы собрать день по винодельням без лишней суеты.
-        </p>
+    <div className="relative min-h-screen overflow-hidden bg-white">
+      <div className="relative mx-auto h-[1080px] w-[1920px] max-w-none origin-top-left overflow-hidden">
+        <img src={heroImage} alt="image 243" className="absolute left-0 top-0 h-[1280px] w-[1920px] object-cover" />
         <div
-          className="mt-4 h-px w-16 bg-gradient-to-r from-transparent via-wine-400/60 to-transparent opacity-0 animate-fade-up"
-          style={{ animationDelay: '0.28s' }}
+          className="pointer-events-none absolute left-0 top-[134px] h-[312px] w-[1882px] rounded-full bg-[#040404] blur-[250px]"
           aria-hidden
         />
-        <div className="mt-10 opacity-0 animate-fade-up" style={{ animationDelay: '0.35s' }}>
-          <Link to="/quiz" className="btn-primary px-10 py-3.5">
-            Собрать маршрут
+
+        <header className="absolute left-1/2 top-[23px] flex -translate-x-1/2 items-start gap-[83px] font-['Montserrat'] uppercase text-[#FCF3B4]">
+          <div className="text-[40px] font-bold leading-[100.79%] tracking-[0.03em]">ETERNIUM</div>
+          <nav className="mt-[2px] flex gap-[70px] text-[30px] font-medium leading-[100.79%] tracking-[0.03em]">
+            <span>о нас</span>
+            <span>маршруты</span>
+            <span>винодельни</span>
+            <span>контакты</span>
+            <span>faq</span>
+          </nav>
+        </header>
+
+        <h1 className="absolute left-1/2 top-[152.4px] w-[1086.85px] -translate-x-1/2 text-center font-['Montserrat'] text-[95px] font-bold uppercase leading-[1.0] tracking-[0.03em] text-[#FCF3B5]">
+          ТВОЙ ГОТОВЫЙ
+          <br />
+          ТУР В 3 КЛИКА
+        </h1>
+
+        <p className="absolute left-1/2 top-[432px] w-[830px] -translate-x-1/2 text-center font-['Montserrat'] text-[30px] font-medium leading-[100.79%] tracking-[0.03em] text-[#FCF3B4]">
+          составь полностью продуманный план тура
+          <br />
+          на любой срок и под любое настроение
+        </p>
+
+        <div className="group absolute left-[398px] top-[540px] h-[515px] w-[490px]">
+          <Link
+            to="/route"
+            aria-label="Перейти к последовательному AI-маршруту"
+            className="pointer-events-none absolute inset-0 z-40 rounded-[55px] opacity-0 transition duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:pointer-events-auto group-hover:opacity-100"
+          />
+          <div className="pointer-events-none absolute inset-0 rounded-[55px] bg-[#fcf3b4]/[0.9] opacity-0 transition duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:opacity-100" />
+          <div className="pointer-events-none absolute left-[15px] top-[114px] h-[60px] w-[459px] translate-y-8 overflow-hidden rounded-[14px] opacity-0 transition duration-650 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:translate-y-0 group-hover:opacity-100">
+            <img src={homeHoverAI} alt="" className="h-full w-full object-cover" />
+          </div>
+          <p className="pointer-events-none absolute left-[23px] top-[262px] w-[444px] text-center font-['Montserrat'] text-[38px] font-extrabold leading-[1.02] tracking-[0.02em] text-[#595959] opacity-0 [text-shadow:0_2px_10px_rgba(252,243,180,0.45)] group-hover:opacity-100">
+            AI-ассистент
+            <br />
+            поможет собрать
+            <br />
+            последовательный
+            <br />
+            маршрут под вас
+          </p>
+          <Link
+            to="/route"
+            className="absolute left-0 top-[378px] flex h-[135px] w-[490px] items-center justify-center rounded-[55px] bg-[#fcf3b4]/[0.86] px-8 text-center font-['Montserrat'] text-[35px] font-bold leading-[100.79%] tracking-[0.03em] text-[#595959] hover:brightness-110 group-hover:pointer-events-none group-hover:opacity-0"
+          >
+            Последовательный
+            <br />
+            тур с AI
           </Link>
         </div>
-        <p
-          className="mt-8 text-xs text-stone-500 opacity-0 animate-fade-up"
-          style={{ animationDelay: '0.45s' }}
-        >
-          Бесплатно · без регистрации
-        </p>
+
+        <div className="group absolute left-[987px] top-[538px] h-[515px] w-[490px]">
+          <Link
+            to="/quiz"
+            aria-label="Перейти к опросу"
+            className="pointer-events-none absolute inset-0 z-40 rounded-[55px] opacity-0 transition duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:pointer-events-auto group-hover:opacity-100"
+          />
+          <div className="pointer-events-none absolute inset-0 rounded-[55px] bg-[#fcf3b4]/[0.9] opacity-0 transition duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:opacity-100" />
+          <div className="pointer-events-none absolute left-[73px] top-[68px] h-[204px] w-[343px] translate-y-8 overflow-hidden rounded-[37px] opacity-0 transition duration-650 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:translate-y-0 group-hover:opacity-100">
+            <img src={homeHoverQuiz} alt="" className="h-full w-full object-cover" />
+          </div>
+          <p className="pointer-events-none absolute left-[23px] top-[300px] w-[444px] text-center font-['Montserrat'] text-[38px] font-extrabold leading-[1.02] tracking-[0.02em] text-[#595959] opacity-0 [text-shadow:0_2px_10px_rgba(252,243,180,0.45)] group-hover:opacity-100">
+            Короткий опрос
+            <br />
+            из 5 вопросов
+            <br />
+            подберет для вас
+            <br />
+            идеальный маршрут
+          </p>
+          <Link
+            to="/quiz"
+            className="absolute left-[6px] top-[380px] flex h-[135px] w-[490px] items-center justify-center rounded-[55px] bg-[#fcf3b4]/[0.86] px-8 text-center font-['Montserrat'] text-[35px] font-bold leading-[100.79%] tracking-[0.03em] text-[#595959] hover:brightness-110 group-hover:pointer-events-none group-hover:opacity-0"
+          >
+            Тур на основе ваших
+            <br />
+            предпочтений
+          </Link>
+        </div>
       </div>
     </div>
   )

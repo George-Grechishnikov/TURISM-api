@@ -16,6 +16,8 @@ export const useTripStore = create((set, get) => ({
   moodTags: [],
   durationTags: [],
   extraTags: [],
+  budgetMin: 5000,
+  budgetMax: 1000000,
 
   route: null,
   places: [],
@@ -31,16 +33,45 @@ export const useTripStore = create((set, get) => ({
   },
 
   setTags: (field, tags) => set({ [field]: tags }),
+  setBudget: (min, max) => set({ budgetMin: min, budgetMax: max }),
 
   buildRoute: async () => {
     set({ loading: true, error: null })
     try {
-      const { companionsTags, moodTags, durationTags, extraTags } = get()
+      const { companionsTags, moodTags, durationTags, extraTags, budgetMin, budgetMax } = get()
       const data = await buildRouteApi({
         companions_tags: companionsTags,
         mood_tags: moodTags,
         duration_tags: durationTags,
         extra_tags: extraTags,
+        budget_min: budgetMin,
+        budget_max: budgetMax,
+        max_stops: 6,
+      })
+      set({
+        route: data.route,
+        places: data.places,
+        loading: false,
+      })
+      return data
+    } catch (e) {
+      const msg = e.response?.data?.detail || e.message || 'Ошибка маршрута'
+      set({ error: String(msg), loading: false })
+      throw e
+    }
+  },
+
+  startRouteWithPlace: async (placeId) => {
+    set({ loading: true, error: null })
+    try {
+      const data = await buildRouteApi({
+        companions_tags: [],
+        mood_tags: [],
+        duration_tags: [],
+        extra_tags: [],
+        include_place_ids: [placeId],
+        budget_min: get().budgetMin,
+        budget_max: get().budgetMax,
         max_stops: 6,
       })
       set({

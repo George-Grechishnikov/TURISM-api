@@ -31,7 +31,7 @@ const WEATHER_ICON = {
 
 export function RoutePage() {
   const requestSommelierOpen = useSommelierUiStore((s) => s.requestOpen)
-  const { route, places, patching, error, removeStop, addStop } = useTripStore()
+  const { route, places, patching, error, removeStop, addStop, startRouteWithPlace, loading } = useTripStore()
   const [allPlaces, setAllPlaces] = useState([])
   const [detailId, setDetailId] = useState(null)
   const [previewPlace, setPreviewPlace] = useState(null)
@@ -60,17 +60,68 @@ export function RoutePage() {
 
   if (!route) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-[#faf7f2] bg-mesh-quiz px-6 py-16">
-        <div className="max-w-md rounded-3xl border border-stone-200/80 bg-white/80 p-8 text-center shadow-card">
-          <p className="font-display text-lg font-semibold text-wine-950">Маршрут ещё не собран</p>
-          <p className="mt-2 text-sm text-stone-600">Ответьте на вопросы — и мы построим карту под вас.</p>
-          <Link
-            to="/quiz"
-            className="btn-primary mt-8 inline-flex px-8 py-3 text-sm"
-          >
-            К вопросам
-          </Link>
+      <div className="fixed inset-0 z-[5] flex flex-col bg-gradient-to-b from-stone-950 via-stone-900 to-stone-950">
+        <div className="relative z-0 min-h-0 flex-1" style={{ minHeight: '40vh' }}>
+          <RouteMap
+            places={[]}
+            onMarkerHoverPreview={setPreviewPlace}
+            onMarkerHoverEnd={() => setPreviewPlace(null)}
+            onMarkerClick={(id) => {
+              setPreviewPlace(null)
+              setDetailId(id)
+            }}
+            className="absolute inset-0 h-full min-h-[40vh] w-full"
+          />
         </div>
+        <aside
+          className="pointer-events-auto absolute left-3 top-3 bottom-3 z-[200] flex w-[min(22rem,calc(100vw-7.5rem))] max-h-[calc(100dvh-1.5rem)] flex-col overflow-hidden rounded-3xl glass-route-panel"
+          aria-label="Список мест для добавления"
+        >
+          <div className="h-1 shrink-0 bg-bar-warm" aria-hidden />
+          <div className="shrink-0 border-b border-stone-200/70 bg-gradient-to-b from-white/50 to-transparent px-4 py-3.5">
+            <div className="flex items-center justify-between gap-2">
+              <Link to="/" className="text-xs font-semibold text-stone-500 transition hover:text-wine-800">
+                ← Главная
+              </Link>
+              <Link
+                to="/quiz"
+                className="rounded-full bg-wine-50 px-2.5 py-1 text-[11px] font-semibold text-wine-800 ring-1 ring-wine-200/60 transition hover:bg-wine-100"
+              >
+                Опрос
+              </Link>
+            </div>
+            <h1 className="font-display mt-2.5 text-lg font-semibold tracking-tight text-wine-950">Маршрут</h1>
+            <p className="mt-1 text-xs text-stone-600">
+              Выберите место ниже — начнем маршрут без предварительной генерации.
+            </p>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3 pb-6">
+            <div className="rounded-xl border border-stone-200/70 bg-white/70 px-3 py-2 text-left text-[11px] text-stone-700">
+              👕 Погода будет учтена автоматически после добавления первого места в маршрут.
+            </div>
+            {error && (
+              <p className="mt-1 rounded-xl border border-red-200/80 bg-red-50/90 px-3 py-2 text-left text-xs text-red-800">
+                {error}
+              </p>
+            )}
+            <section className="mt-3 pb-2 text-left">
+              <h2 className="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-500">Добавить</h2>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {optionalPlaces.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    disabled={patching || loading}
+                    onClick={() => startRouteWithPlace(p.id)}
+                    className="rounded-full border border-stone-200/90 bg-white/95 px-3 py-1.5 text-xs font-semibold text-stone-700 shadow-sm transition hover:border-wine-300 hover:bg-wine-50 hover:text-wine-900 disabled:opacity-40"
+                  >
+                    + {p.name}
+                  </button>
+                ))}
+              </div>
+            </section>
+          </div>
+        </aside>
       </div>
     )
   }

@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 
 import { SommelierAssistant } from './components/SommelierAssistant'
 import { collectSignals } from './lib/api'
@@ -23,15 +23,24 @@ export default function App() {
   useClientSignals()
   return (
     <BrowserRouter>
-      <div className="min-h-screen w-full">
-        <SommelierAssistant />
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/quiz" element={<QuizPage />} />
-          <Route path="/route" element={<RoutePage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </div>
+      <AppRoutes />
     </BrowserRouter>
+  )
+}
+
+function AppRoutes() {
+  const location = useLocation()
+  const showSommelier = location.pathname === '/route'
+
+  return (
+    <div className="min-h-screen w-full">
+      {showSommelier ? <SommelierAssistant /> : null}
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/quiz" element={<QuizPage />} />
+        <Route path="/route" element={<RoutePage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </div>
   )
 }
