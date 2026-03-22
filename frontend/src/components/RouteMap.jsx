@@ -46,7 +46,7 @@ function dedupeRouteCoords(coords) {
   return out
 }
 
-/** Простая полилиния по точкам — максимально совместимо с API 2.1 (без geometry.LineString). */
+/** Простая полилиния по точкам — запасной вариант, если multiRouter недоступен или маршрут не построился. */
 function createRoutePolyline(ymaps, places, routeColor) {
   const coords = dedupeRouteCoords(places.map((p) => [Number(p.latitude), Number(p.longitude)]))
   if (coords.length < 2) return null
@@ -59,6 +59,41 @@ function createRoutePolyline(ymaps, places, routeColor) {
       strokeOpacity: 0.9,
     },
   )
+}
+
+/** Маршрут по дорогам (Яндекс multiRouter); при ошибке — полилиния по прямой. */
+function requireMultiRouter(ymaps) {
+  return new Promise((resolve, reject) => {
+    try {
+      if (ymaps.multiRouter?.MultiRoute) {
+        resolve()
+        return
+      }
+      ymaps.modules.require(
+        ['multiRouter.multiRouter'],
+        () => resolve(),
+        (err) => reject(err || new Error('multiRouter')),
+      )
+    } catch (e) {
+      reject(e)
+    }
+  })
+}
+
+function fitPlacesBounds(map, places) {
+  if (!places.length) return
+  try {
+    const bounds = map.geoObjects.getBounds()
+    if (bounds) {
+      map.setBounds(bounds, {
+        checkZoomRange: true,
+        zoomMargin: [20, 24, 20, mapLeftMarginPx()],
+        duration: 200,
+      })
+    }
+  } catch {
+    map.setCenter([Number(places[0].latitude), Number(places[0].longitude)], 11)
+  }
 }
 
 function ensureCirclePhotoLayout(ymaps) {
@@ -163,87 +198,133 @@ export function RouteMap({ places, routeColor, onMarkerClick, onMarkerHoverPrevi
 
   useEffect(() => {
     const map = mapInstanceRef.current
-    if (!mapReady || !map || !window.ymaps) return
+    if (!mapReady || !map || !window.ymaps) return undefined
 
     const ymaps = window.ymaps
+    let cancelled = false
 
-    try {
-      const CircleLayout = ensureCirclePhotoLayout(ymaps)
-      map.geoObjects.removeAll()
+    const run = async () => {
+      try {
+        const CircleLayout = ensureCirclePhotoLayout(ymaps)
+        map.geoObjects.removeAll()
 
-      const routeLine = createRoutePolyline(ymaps, places, routeColor)
-      if (routeLine) map.geoObjects.add(routeLine)
-
-      places.forEach((p) => {
-        let hoverTimer = null
-        const clearHoverTimer = () => {
-          if (hoverTimer != null) {
-            window.clearTimeout(hoverTimer)
-            hoverTimer = null
-          }
-        }
-        const openFullscreen = () => {
-          hoverEndRef.current?.()
-          clickRef.current?.(p.id)
-        }
-        const openHoverPreview = () => {
-          hoverPreviewRef.current?.(p)
-        }
-
-        const placemark = new ymaps.Placemark(
-          [Number(p.latitude), Number(p.longitude)],
-          {
-            photoUrl: photoUrlForPlace(p),
-          },
-          {
-            iconLayout: CircleLayout,
-            iconShape: {
-              type: 'Circle',
-              coordinates: ICON_SHAPE_CENTER,
-              radius: MARKER_RADIUS,
-            },
-            iconOffset: ICON_OFFSET,
-            openHintOnHover: false,
-            openBalloonOnClick: false,
-          },
-        )
-        placemark.events.add('mouseenter', () => {
-          clearHoverTimer()
-          if (!hoverPreviewRef.current) return
-          hoverTimer = window.setTimeout(() => {
-            hoverTimer = null
-            openHoverPreview()
-          }, HOVER_OPEN_MS)
-        })
-        placemark.events.add('mouseleave', () => {
-          clearHoverTimer()
-          hoverEndRef.current?.()
-        })
-        placemark.events.add('click', () => {
-          clearHoverTimer()
-          openFullscreen()
-        })
-        map.geoObjects.add(placemark)
-      })
-
-      if (places.length) {
-        try {
-          const bounds = map.geoObjects.getBounds()
-          if (bounds) {
-            map.setBounds(bounds, {
-              checkZoomRange: true,
-              zoomMargin: [20, 24, 20, mapLeftMarginPx()],
-              duration: 200,
+        const stroke = routeColor || '#7c2944'
+        let multiRoute = null
+        if (places.length >= 2) {
+          try {
+            await requireMultiRouter(ymaps)
+            if (cancelled) return
+            const refPoints = dedupeRouteCoords(
+              places.map((p) => [Number(p.latitude), Number(p.longitude)]),
+            )
+            multiRoute = new ymaps.multiRouter.MultiRoute(
+              {
+                referencePoints: refPoints,
+                params: { routingMode: 'auto', results: 1 },
+              },
+              {
+                routeActiveStrokeWidth: 4,
+                routeActiveStrokeColor: stroke,
+                routeStrokeWidth: 3,
+                routeStrokeColor: stroke,
+                wayPointVisible: false,
+                viaPointVisible: false,
+              },
+            )
+            multiRoute.model.events.add('requestsuccess', () => {
+              if (cancelled) return
+              fitPlacesBounds(map, places)
+              requestAnimationFrame(() => fitMapViewport(map))
             })
+            multiRoute.model.events.add('requestfail', () => {
+              if (cancelled) return
+              try {
+                map.geoObjects.remove(multiRoute)
+              } catch {
+                /* ignore */
+              }
+              const line = createRoutePolyline(ymaps, places, routeColor)
+              if (line) map.geoObjects.add(line)
+              fitPlacesBounds(map, places)
+              requestAnimationFrame(() => fitMapViewport(map))
+            })
+            map.geoObjects.add(multiRoute)
+          } catch {
+            const routeLine = createRoutePolyline(ymaps, places, routeColor)
+            if (routeLine) map.geoObjects.add(routeLine)
           }
-        } catch {
-          map.setCenter([Number(places[0].latitude), Number(places[0].longitude)], 11)
         }
-      }
 
-      requestAnimationFrame(() => fitMapViewport(map))
-    } catch (e) {
-      console.error('RouteMap geoObjects:', e)
+        places.forEach((p) => {
+          let hoverTimer = null
+          const clearHoverTimer = () => {
+            if (hoverTimer != null) {
+              window.clearTimeout(hoverTimer)
+              hoverTimer = null
+            }
+          }
+          const openFullscreen = () => {
+            hoverEndRef.current?.()
+            clickRef.current?.(p.id)
+          }
+          const openHoverPreview = () => {
+            hoverPreviewRef.current?.(p)
+          }
+
+          const placemark = new ymaps.Placemark(
+            [Number(p.latitude), Number(p.longitude)],
+            {
+              photoUrl: photoUrlForPlace(p),
+            },
+            {
+              iconLayout: CircleLayout,
+              iconShape: {
+                type: 'Circle',
+                coordinates: ICON_SHAPE_CENTER,
+                radius: MARKER_RADIUS,
+              },
+              iconOffset: ICON_OFFSET,
+              openHintOnHover: false,
+              openBalloonOnClick: false,
+            },
+          )
+          placemark.events.add('mouseenter', () => {
+            clearHoverTimer()
+            if (!hoverPreviewRef.current) return
+            hoverTimer = window.setTimeout(() => {
+              hoverTimer = null
+              openHoverPreview()
+            }, HOVER_OPEN_MS)
+          })
+          placemark.events.add('mouseleave', () => {
+            clearHoverTimer()
+            hoverEndRef.current?.()
+          })
+          placemark.events.add('click', () => {
+            clearHoverTimer()
+            openFullscreen()
+          })
+          map.geoObjects.add(placemark)
+        })
+
+        if (!multiRoute) {
+          fitPlacesBounds(map, places)
+          requestAnimationFrame(() => fitMapViewport(map))
+        } else {
+          window.setTimeout(() => {
+            if (cancelled) return
+            fitPlacesBounds(map, places)
+            requestAnimationFrame(() => fitMapViewport(map))
+          }, 1200)
+        }
+      } catch (e) {
+        console.error('RouteMap geoObjects:', e)
+      }
+    }
+
+    run()
+    return () => {
+      cancelled = true
     }
   }, [places, mapReady, routeColor])
 

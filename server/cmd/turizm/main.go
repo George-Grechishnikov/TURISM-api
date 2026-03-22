@@ -31,12 +31,15 @@ func main() {
 	if err := store.Migrate(ctx, pool); err != nil {
 		log.Fatalf("migrate: %v", err)
 	}
+	if err := seed.SyncKrasnodarBundled(ctx, pool); err != nil {
+		log.Fatalf("sync krasnodar wineries: %v", err)
+	}
 	n, err := store.CountPublishedWineries(ctx, pool)
 	if err != nil {
 		log.Fatalf("count: %v", err)
 	}
 	if n == 0 {
-		log.Println("No published wineries — seeding demo")
+		log.Println("No published wineries after sync — fallback compact demo")
 		if err := seed.Run(ctx, pool); err != nil {
 			log.Fatalf("seed: %v", err)
 		}

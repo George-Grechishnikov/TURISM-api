@@ -1,0 +1,26 @@
+{
+  "source_article": "https://swn.ru/articles/17-vinodelen-krasnodarskogo-kraya-kotorye-stoit-posetit",
+  "note_ru": "Авто-парсинг swn.ru с сервера недоступен (403). Список и координаты — ориентир по открытым данным и картам; при необходимости поправьте lat/lon в этом файле и перезапустите backend.",
+  "places": [
+    {"name": "Абрау-Дюрсо", "slug": "abrau-durso-wine", "category": "winery", "lat": 44.7012, "lon": 37.5914, "short": "Шампанские вина, экскурсии, Абрау-Дюрсо.", "tags": ["дегустация", "экскурсия", "шампанское"]},
+    {"name": "Мысхако", "slug": "myskhako", "category": "winery", "lat": 44.6508, "lon": 37.7669, "short": "Винодельня у Новороссийска, терруар у моря.", "tags": ["дегустация", "море", "рядом"]},
+    {"name": "Фанагория", "slug": "fanagoriya-taman", "category": "winery", "lat": 45.339, "lon": 36.994, "short": "Крупное хозяйство, Тамань.", "tags": ["музей", "дегустация", "тамань"]},
+    {"name": "Скалистый берег", "slug": "skalisty-bereg", "category": "winery", "lat": 44.576, "lon": 38.042, "short": "Новороссийск, вина с выдержкой.", "tags": ["дегустация", "прохладно"]},
+    {"name": "Шато де Талю", "slug": "chateau-de-talu", "category": "winery", "lat": 45.286, "lon": 37.357, "short": "Темрюкский район, винный туризм.", "tags": ["дегустация", "интерьер", "тамань"]},
+    {"name": "Галицкий и Галицкий", "slug": "galitsky-galitsky", "category": "winery", "lat": 44.593, "lon": 38.017, "short": "Геленджик, авторские вина.", "tags": ["дегустация", "зал", "море"]},
+    {"name": "Усадьба Маркотх", "slug": "usadba-markotkh", "category": "winery", "lat": 45.029, "lon": 39.776, "short": "Холмы Маркотх, дегустации.", "tags": ["дегустация", "панорама", "рядом"]},
+    {"name": "Château Pinot (Азов вино)", "slug": "chateau-pinot-betta", "category": "winery", "lat": 45.353, "lon": 37.018, "short": "Станица Бетта, шато и вина.", "tags": ["дегустация", "шато"]},
+    {"name": "Лефкадия", "slug": "lefkadia", "category": "winery", "lat": 45.581, "lon": 38.663, "short": "Микрорайон Лефкадия, премиум-вина.", "tags": ["дегустация", "прохладно", "интерьер"]},
+    {"name": "Кубань-Вино (центр дегустаций, Краснодар)", "slug": "kuban-vino-krasnodar", "category": "winery", "lat": 45.036, "lon": 38.972, "short": "Дегустации в городе.", "tags": ["дегустация", "крыто", "зал"]},
+    {"name": "Château Le Grand Vostock", "slug": "chateau-le-grand-vostock", "category": "winery", "lat": 45.218, "lon": 39.061, "short": "Станица Крыловская, франко-русский проект.", "tags": ["дегустация", "шато"]},
+    {"name": "Ведерниковъ", "slug": "vedernikov", "category": "winery", "lat": 45.798, "lon": 39.867, "short": "Усть-Лабинский район, классика Кубани.", "tags": ["дегустация", "музей"]},
+    {"name": "Мезыбь", "slug": "mezyb", "category": "winery", "lat": 45.458, "lon": 36.884, "short": "Крымский район, винный комплекс.", "tags": ["дегустация", "рядом"]},
+    {"name": "Саркел", "slug": "sarkel", "category": "winery", "lat": 45.368, "lon": 36.884, "short": "Темрюкский район.", "tags": ["дегустация"]},
+    {"name": "Имение Сикоры", "slug": "imenie-sikory", "category": "winery", "lat": 45.141, "lon": 37.448, "short": "Таманский полуостров.", "tags": ["дегустация", "тамань"]},
+    {"name": "Шумринка", "slug": "shumrinka", "category": "winery", "lat": 45.293, "lon": 37.351, "short": "Темрюкский район.", "tags": ["дегустация"]},
+    {"name": "Николаев и сыновья", "slug": "nikolaev-i-synovya", "category": "winery", "lat": 45.138, "lon": 36.898, "short": "Темрюк, семейное хозяйство.", "tags": ["дегустация", "семья"]},
+    {"name": "Гостевой дом «Кубань-маршрут»", "slug": "svc-lodging-krasnodar-hub", "category": "lodging", "lat": 45.042, "lon": 38.99, "short": "Жильё для маршрута (сервисная точка).", "tags": ["жильё", "демо"]},
+    {"name": "Кафе «По дороге вино»", "slug": "svc-food-krasnodar-hub", "category": "food", "lat": 45.048, "lon": 38.985, "short": "Питание у трассы (сервисная точка).", "tags": ["питание", "обед", "демо"]},
+    {"name": "Трансфер «Кубань»", "slug": "svc-transfer-krasnodar-hub", "category": "transfer", "lat": 45.04, "lon": 38.988, "short": "Трансфер по маршруту (сервисная точка).", "tags": ["трансфер", "демо"]}
+  ]
+}
