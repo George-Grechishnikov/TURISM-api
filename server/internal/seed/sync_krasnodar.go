@@ -66,7 +66,7 @@ func SyncKrasnodarBundled(ctx context.Context, pool *pgxpool.Pool) error {
 			full += "\n\n" + doc.NoteRU
 		}
 		id := uuid.New()
-		_, err := pool.Exec(ctx, `
+		_, err = pool.Exec(ctx, `
 			INSERT INTO places_place (
 				id, name, slug, latitude, longitude, region, category, is_winery,
 				short_description, full_description, tags, photo_urls, video_url, published
