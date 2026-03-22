@@ -9,7 +9,12 @@ import { SequentialAiChatCard } from '../components/SequentialAiChatCard'
 import { fetchPlaces } from '../lib/api'
 import { primaryPhotoUrl } from '../lib/placePhoto'
 import { geocodeSearchQuery } from '../lib/yandexGeocode'
-import { buildDrivingNavLegs, yandexMapsDrivingUrl } from '../lib/yandexNavLink'
+import {
+  buildDrivingNavLegs,
+  buildDrivingRouteCoordsOrdered,
+  yandexMapsDrivingUrl,
+  yandexMapsFullRouteUrl,
+} from '../lib/yandexNavLink'
 import { ROUTE_ENTRY_SEQUENTIAL_AI } from '../lib/routeEntry'
 import { hasSequentialAiTourSession } from '../lib/sequentialAiSession'
 import { useSommelierUiStore } from '../store/sommelierUiStore'
@@ -269,6 +274,12 @@ export function RoutePage() {
     () => (drivingRouteStart ? buildDrivingNavLegs(drivingRouteStart, places) : []),
     [drivingRouteStart, places],
   )
+
+  const yandexFullRouteHref = useMemo(() => {
+    if (!drivingRouteStart) return null
+    const coords = buildDrivingRouteCoordsOrdered(drivingRouteStart, places)
+    return yandexMapsFullRouteUrl(coords)
+  }, [drivingRouteStart, places])
 
   const weather = route?.weather_snapshot
 
@@ -604,9 +615,23 @@ export function RoutePage() {
                   <div className="border-t border-stone-200 pt-2">
                     <p className="text-[10px] font-bold uppercase tracking-wide text-stone-500">Навигация</p>
                     <p className="mt-0.5 text-[9px] leading-snug text-stone-500">
-                      Пошаговый маршрут и голос — в приложении или на сайте Яндекса после открытия ссылки.
+                      Пошаговый маршрут и голос — в приложении или на сайте Яндекса. Открывайте ссылки в обычной вкладке
+                      браузера (не через предпросмотр бота — иначе бывает проверка «не робот»).
                     </p>
-                    <ul className="mt-2 max-h-[min(11rem,40dvh)] space-y-1 overflow-y-auto overscroll-contain pr-0.5 text-[10px] [scrollbar-width:thin]">
+                    {yandexFullRouteHref ? (
+                      <a
+                        href={yandexFullRouteHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-wine-600 to-wine-800 px-3 py-2.5 text-center text-[11px] font-semibold text-white shadow-md transition hover:brightness-110"
+                      >
+                        Весь маршрут в Яндекс.Картах
+                      </a>
+                    ) : null}
+                    <p className="mt-2 text-[9px] font-semibold uppercase tracking-wide text-stone-400">
+                      По отрезкам
+                    </p>
+                    <ul className="mt-1 max-h-[min(11rem,40dvh)] space-y-1 overflow-y-auto overscroll-contain pr-0.5 text-[10px] [scrollbar-width:thin]">
                       {drivingNavLegs.map((leg, i) => (
                         <li key={`${leg.fromLat}-${leg.fromLon}-${leg.toLat}-${leg.toLon}-${i}`}>
                           <a
