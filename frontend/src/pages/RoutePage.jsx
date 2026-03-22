@@ -36,6 +36,27 @@ const WEATHER_ICON = {
   wind: '💨',
 }
 
+/** Сообщения по коду GeolocationPositionError (1/2/3). */
+function geolocationErrorHint(code) {
+  switch (code) {
+    case 1:
+      return 'Доступ к геолокации запрещён. Разрешите «Местоположение» для этого сайта в настройках браузера (значок замка слева от адреса) или введите адрес ниже.'
+    case 2:
+      return 'Позицию определить не удалось (часто на ПК без GPS или в эмуляторе). Введите город или адрес вручную.'
+    case 3:
+      return 'Истекло время ожидания. Проверьте GPS/сеть или введите адрес вручную.'
+    default:
+      return 'Не удалось определить место. Разрешите доступ к геолокации или введите адрес вручную.'
+  }
+}
+
+function isSecureContextForGeo() {
+  if (typeof window === 'undefined') return true
+  if (window.isSecureContext) return true
+  const h = window.location.hostname
+  return h === 'localhost' || h === '127.0.0.1'
+}
+
 /** Видно ~столько чипов без прокрутки; дальше — вертикальная карусель как у «Остановки» */
 const ADD_CHIPS_VISIBLE = 3
 /** От этого числа мест включается вертикальный скролл */
@@ -176,22 +197,54 @@ export function RoutePage() {
   const pickDrivingGeo = useCallback(() => {
     setDrivingGeoHint(null)
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      setDrivingGeoHint('Геолокация недоступна в браузере')
+      setDrivingGeoHint('Геолокация недоступна в этом браузере')
       return
     }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
+    if (!isSecureContextForGeo()) {
+      setDrivingGeoHint(
+        'Геолокация в браузере доступна только по HTTPS (или на localhost). Откройте сайт по https:// либо введите адрес вручную.',
+      )
+      return
+    }
+
+    const readPosition = (opts) =>
+      new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, opts)
+      })
+
+    void (async () => {
+      const apply = (pos) => {
         setDrivingRouteStart({
           kind: 'point',
           latitude: pos.coords.latitude,
           longitude: pos.coords.longitude,
           label: 'Вы здесь',
         })
-      },
-      () =>
-        setDrivingGeoHint('Не удалось определить место — разрешите доступ или введите адрес вручную'),
-      { enableHighAccuracy: true, timeout: 20000, maximumAge: 60000 },
-    )
+      }
+      let firstFailCode
+      try {
+        const pos = await readPosition({
+          enableHighAccuracy: true,
+          timeout: 14000,
+          maximumAge: 0,
+        })
+        apply(pos)
+        return
+      } catch (e) {
+        firstFailCode = e?.code
+        /* часто на ПК первая попытка с GPS таймаутит — пробуем грубую сеть/cell */
+      }
+      try {
+        const pos = await readPosition({
+          enableHighAccuracy: false,
+          timeout: 12000,
+          maximumAge: 300000,
+        })
+        apply(pos)
+      } catch (e2) {
+        setDrivingGeoHint(geolocationErrorHint(e2?.code ?? firstFailCode))
+      }
+    })()
   }, [setDrivingRouteStart])
 
   const submitAddressForDriving = useCallback(async () => {
