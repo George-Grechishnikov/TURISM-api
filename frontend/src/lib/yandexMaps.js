@@ -43,9 +43,17 @@ export function loadYandexMapsApi() {
       return
     }
 
-    const key = import.meta.env.VITE_YANDEX_MAPS_API_KEY || ''
+    // Пробелы/кавычки в .env часто ломают ключ; в кабинете нужен сервис «JavaScript API и HTTP Геокодер».
+    const key = String(import.meta.env.VITE_YANDEX_MAPS_API_KEY ?? '')
+      .trim()
+      .replace(/^['"]|['"]$/g, '')
     const qs = new URLSearchParams({ lang: 'ru_RU' })
     if (key) qs.set('apikey', key)
+    else if (import.meta.env.DEV) {
+      console.warn(
+        '[Turizm] VITE_YANDEX_MAPS_API_KEY пуст — в .env задайте ключ и перезапустите Vite (npm run dev).',
+      )
+    }
 
     const script = document.createElement('script')
     script.src = `https://api-maps.yandex.ru/2.1/?${qs.toString()}`
