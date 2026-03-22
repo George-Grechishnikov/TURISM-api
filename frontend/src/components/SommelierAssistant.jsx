@@ -10,11 +10,11 @@ import { useTripStore } from '../store/tripStore'
 /** Выше оверлеев Яндекс.Карт (часто 1e4–1e6); инлайн — не зависит от purge Tailwind */
 const LAYER_Z = 2147483646
 
-const fabLeft = () =>
+const fabInsetRight = () =>
   typeof window !== 'undefined'
-    ? `max(16px, env(safe-area-inset-left, 0px))`
-    : '16px'
-const fabBottom = () =>
+    ? `max(20px, env(safe-area-inset-right, 0px))`
+    : '20px'
+const fabInsetBottom = () =>
   typeof window !== 'undefined' ? `max(20px, env(safe-area-inset-bottom, 0px))` : '20px'
 
 function sommelierPortalHost() {
@@ -253,9 +253,9 @@ export function SommelierAssistant() {
         style={{
           pointerEvents: 'auto',
           position: 'fixed',
-          left: fabLeft(),
-          bottom: fabBottom(),
-          right: 'auto',
+          right: fabInsetRight(),
+          bottom: fabInsetBottom(),
+          left: 'auto',
           zIndex: 2,
           width: 101,
           height: 130,
@@ -303,9 +303,9 @@ export function SommelierAssistant() {
           style={{
             pointerEvents: 'auto',
             position: 'fixed',
-            left: fabLeft(),
+            right: fabInsetRight(),
             bottom: `calc(168px + env(safe-area-inset-bottom, 0px))`,
-            right: 'auto',
+            left: 'auto',
             zIndex: 3,
             transform: `translate(${panelOffset.x}px, ${panelOffset.y}px)`,
           }}
