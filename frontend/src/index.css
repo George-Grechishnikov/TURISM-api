@@ -109,7 +109,7 @@ input.quiz-budget-range {
   appearance: none;
   background: transparent;
   margin: 0;
-  height: 66px;
+  height: 58px;
   pointer-events: none;
 }
 
@@ -128,11 +128,11 @@ input.quiz-budget-range::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   box-sizing: border-box;
-  width: 66px;
-  height: 66px;
-  margin-top: -18px;
+  width: 58px;
+  height: 58px;
+  margin-top: -14px;
   border-radius: 9999px;
-  border: 11px solid #b12030;
+  border: 9px solid #b12030;
   background: #fff;
   cursor: grab;
   pointer-events: auto;
@@ -151,10 +151,10 @@ input.quiz-budget-range::-moz-range-track {
 
 input.quiz-budget-range::-moz-range-thumb {
   box-sizing: border-box;
-  width: 66px;
-  height: 66px;
+  width: 58px;
+  height: 58px;
   border-radius: 9999px;
-  border: 11px solid #b12030;
+  border: 9px solid #b12030;
   background: #fff;
   cursor: grab;
   pointer-events: auto;

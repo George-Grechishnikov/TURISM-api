@@ -183,7 +183,7 @@ export function QuizPage() {
           </section>
 
           <div
-            className="pointer-events-none absolute z-20 flex h-[64px] min-w-[200px] max-w-[280px] items-center justify-center rounded-[27px] bg-[#B12030] px-4 text-center text-[20px] font-bold leading-[100.79%] tracking-[0.03em] text-white"
+            className="pointer-events-none absolute z-20 flex h-[56px] min-w-[180px] max-w-[260px] items-center justify-center rounded-[22px] bg-[#B12030] px-3 text-center text-[18px] font-bold leading-[100.79%] tracking-[0.03em] text-white"
             style={{
               left: `${minTooltipLeft}px`,
               top: `${BUDGET_TOOLTIP_TOP}px`,
@@ -193,7 +193,7 @@ export function QuizPage() {
             От {budgetMin.toLocaleString('ru-RU')} руб
           </div>
           <div
-            className="pointer-events-none absolute z-20 flex h-[64px] min-w-[200px] max-w-[280px] items-center justify-center rounded-[27px] bg-[#B12030] px-4 text-center text-[20px] font-bold leading-[100.79%] tracking-[0.03em] text-white"
+            className="pointer-events-none absolute z-20 flex h-[56px] min-w-[180px] max-w-[260px] items-center justify-center rounded-[22px] bg-[#B12030] px-3 text-center text-[18px] font-bold leading-[100.79%] tracking-[0.03em] text-white"
             style={{
               left: `${maxTooltipLeft}px`,
               top: `${BUDGET_TOOLTIP_TOP}px`,
@@ -257,13 +257,13 @@ export function QuizPage() {
             }}
             aria-label="Максимальный бюджет"
           />
-          <p className="absolute left-[166px] top-[1390px] text-[20px] font-bold leading-[100.79%] tracking-[0.03em] text-black">min</p>
-          <p className="absolute left-[807px] top-[1390px] text-[20px] font-bold leading-[100.79%] tracking-[0.03em] text-black">max</p>
+          <p className="absolute left-[166px] top-[1390px] text-[18px] font-bold leading-[100.79%] tracking-[0.03em] text-black">min</p>
+          <p className="absolute left-[807px] top-[1390px] text-[18px] font-bold leading-[100.79%] tracking-[0.03em] text-black">max</p>
 
           <button
             type="submit"
             disabled={!canSubmit || !budgetReady || loading}
-            className="absolute left-[1153px] top-[1296px] h-[106px] w-[671px] rounded-[53px] bg-[linear-gradient(180deg,#1f2328_0%,#07090c_100%)] text-[50px] font-semibold uppercase leading-[100.79%] tracking-[0.03em] text-white shadow-[0_18px_40px_rgba(0,0,0,0.32)] transition hover:brightness-110 disabled:pointer-events-none disabled:opacity-40"
+            className="absolute left-[1169px] top-[1304px] h-[92px] w-[640px] rounded-[46px] bg-[linear-gradient(180deg,#1f2328_0%,#07090c_100%)] text-[42px] font-semibold uppercase leading-[100.79%] tracking-[0.03em] text-white shadow-[0_14px_34px_rgba(0,0,0,0.28)] transition hover:brightness-110 disabled:pointer-events-none disabled:opacity-40"
           >
             {loading ? 'Строим...' : 'Поехали'}
           </button>
@@ -294,12 +294,12 @@ function TagChip({ selected, onClick, label, fixed, extra }) {
     <button
       type="button"
       onClick={onClick}
-      className={`h-[61px] rounded-[53px] px-9 text-[22px] font-bold leading-[89%] tracking-[0.03em] transition duration-200 hover:-translate-y-[1px] ${
-        fixed ? (extra ? 'w-[230px] px-4' : 'min-w-[159px]') : 'min-w-[159px]'
+      className={`h-[54px] rounded-[46px] px-7 text-[19px] font-bold leading-[89%] tracking-[0.03em] transition duration-200 hover:-translate-y-[1px] ${
+        fixed ? (extra ? 'w-[208px] px-3.5' : 'min-w-[144px]') : 'min-w-[144px]'
       } ${
         selected
-          ? 'bg-[#C2000D]/[0.86] text-[#FFF7F7] shadow-[0_10px_22px_rgba(194,0,13,0.28)]'
-          : 'bg-white/90 text-black shadow-[0_6px_14px_rgba(0,0,0,0.08)]'
+          ? 'bg-[#C2000D]/[0.86] text-[#FFF7F7] shadow-[0_8px_18px_rgba(194,0,13,0.24)]'
+          : 'bg-white/90 text-black shadow-[0_5px_12px_rgba(0,0,0,0.07)]'
       }`}
     >
       {label}

@@ -38,6 +38,12 @@ export async function buildRoute(body) {
   return data
 }
 
+/** ИИ-чат последовательного маршрута: message, route_place_ids, history [{role,text}] */
+export async function postSequentialChat(body) {
+  const { data } = await api.post('/api/routes/sequential-chat/', body)
+  return data
+}
+
 export async function patchRoute(routeId, body) {
   const { data } = await api.patch(`/api/routes/${routeId}/`, body)
   return data

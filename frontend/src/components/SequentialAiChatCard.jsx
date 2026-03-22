@@ -1,7 +1,18 @@
-import { useCallback, useEffect, useId, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 
 import aiChatChipIcon from '../assets/ai-chat-chip-icon.png'
+import { postSequentialChat } from '../lib/api'
 import { useSommelierUiStore } from '../store/sommelierUiStore'
+import { useTripStore } from '../store/tripStore'
+
+const WELCOME_TEXT =
+  'Привет! Помогу спланировать винный маршрут: что добавить после текущих остановок, как не перегрузить день, напомню про бронирование дегустаций. Задайте вопрос или нажмите подсказку ниже.'
+
+const SUGGESTIONS = [
+  'Что логично добавить дальше?',
+  'Как не перегрузить день?',
+  'Напомни про бронирование',
+]
 
 /** Иконка чипа из макета (PNG с прозрачным фоном) */
 function AiChipIcon({ className = '' }) {
@@ -28,11 +39,49 @@ function ChatCloseIcon() {
   )
 }
 
+function MessageBubble({ role, text, usedAi }) {
+  const isUser = role === 'user'
+  return (
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+      <div
+        className={
+          isUser
+            ? 'max-w-[min(414px,85%)] rounded-[24px] bg-[#B12030] px-6 py-2.5 shadow-sm'
+            : 'max-w-[min(414px,92%)] rounded-[31px] bg-[#D8D6D6] px-4 py-4 shadow-sm'
+        }
+      >
+        <p
+          className={`whitespace-pre-wrap font-['Montserrat'] text-[clamp(14px,3vw,18px)] font-semibold leading-[130%] tracking-[0.02em] ${
+            isUser ? 'text-white' : 'text-black'
+          }`}
+        >
+          {text}
+        </p>
+        {!isUser && usedAi != null && (
+          <p className="mt-2 text-[10px] font-bold uppercase tracking-wide text-stone-500">
+            {usedAi ? 'Яндекс GPT' : 'Локальная подсказка'}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 /**
- * Развёрнутая панель ИИ-чата. Высота карточки — от viewport; область сообщений ограничена max-h,
- * чтобы колонка чата не растягивалась на весь flex-1 (иначе высота «плавает» с dvh и шапкой).
+ * Развёрнутая панель ИИ-чата.
  */
-function SequentialAiChatPanel({ open, onClose, titleId }) {
+function SequentialAiChatPanel({
+  open,
+  onClose,
+  titleId,
+  messages,
+  sending,
+  sendError,
+  onSend,
+  draft,
+  setDraft,
+  listRef,
+}) {
   const onKeyDown = useCallback(
     (e) => {
       if (e.key === 'Escape') onClose()
@@ -51,7 +100,20 @@ function SequentialAiChatPanel({ open, onClose, titleId }) {
     }
   }, [open, onKeyDown])
 
+  useEffect(() => {
+    if (!open || !listRef.current) return
+    listRef.current.scrollTop = listRef.current.scrollHeight
+  }, [open, messages, sending, listRef])
+
   if (!open) return null
+
+  function submit(e) {
+    e.preventDefault()
+    const t = draft.trim()
+    if (!t || sending) return
+    onSend(t)
+    setDraft('')
+  }
 
   return (
     <div
@@ -64,58 +126,96 @@ function SequentialAiChatPanel({ open, onClose, titleId }) {
         right: 'max(17px, env(safe-area-inset-right, 0px))',
       }}
     >
-        <header className="relative flex shrink-0 items-center gap-3 pl-3 pr-14 pt-5 pb-3">
-          <div className="flex h-[82px] w-[82px] shrink-0 items-center justify-center">
-            <AiChipIcon />
-          </div>
+      <header className="relative flex shrink-0 items-center gap-3 border-b border-stone-100 pl-3 pr-14 pt-5 pb-3">
+        <div className="flex h-[82px] w-[82px] shrink-0 items-center justify-center">
+          <AiChipIcon />
+        </div>
+        <div className="min-w-0">
           <h2
             id={titleId}
             className="font-['Montserrat'] text-[clamp(26px,5vw,45px)] font-bold leading-[100.79%] tracking-[0.03em] text-black"
           >
             ИИ-Чат
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="absolute right-4 top-6 rounded-full p-1 text-stone-600 transition hover:bg-stone-100 hover:text-stone-900"
-            aria-label="Закрыть"
-          >
-            <ChatCloseIcon />
-          </button>
-        </header>
-
-        <div className="flex min-h-0 flex-1 flex-col justify-end">
-          <div className="mx-auto flex min-h-0 w-full max-w-full flex-1 flex-col px-[15px] pb-2 max-h-[min(510px,calc(100dvh-14rem))]">
-            <div className="flex min-h-0 flex-1 flex-col justify-end gap-4 overflow-y-auto overscroll-contain py-4 [scrollbar-width:thin]">
-              <div className="flex justify-end">
-                <div className="max-w-[min(414px,85%)] rounded-[24px] bg-[#B12030] px-10 py-2.5">
-                  <p className="text-center font-['Montserrat'] text-[clamp(16px,3.5vw,25px)] font-bold leading-[100.79%] tracking-[0.03em] text-white">
-                    Сообщение
-                  </p>
-                </div>
-              </div>
-              <div className="flex justify-start">
-                <div className="max-w-[min(414px,92%)] rounded-[31px] bg-[#D8D6D6] px-4 py-6">
-                  <p className="font-['Montserrat'] text-[clamp(15px,3.2vw,25px)] font-bold leading-[120%] tracking-[0.03em] text-black">
-                    влыолвоыдллывотлыодлаоывла
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="shrink-0 pb-4 pt-2">
-              <input
-                type="text"
-                readOnly
-                placeholder="Напишите сообщение…"
-                className="h-[57px] w-full cursor-default rounded-[31px] border-0 bg-[#E9E6E6] px-5 font-['Montserrat'] text-[clamp(14px,2.5vw,18px)] text-stone-800 outline-none placeholder:text-stone-400"
-                aria-label="Поле сообщения (скоро)"
-              />
-            </div>
-          </div>
+          <p className="mt-1 text-[11px] font-medium text-stone-500">Маршрут по Кубани — подсказки по остановкам</p>
         </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-4 top-6 rounded-full p-1 text-stone-600 transition hover:bg-stone-100 hover:text-stone-900"
+          aria-label="Закрыть"
+        >
+          <ChatCloseIcon />
+        </button>
+      </header>
+
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div
+          ref={listRef}
+          className="mx-auto flex min-h-0 w-full max-w-full flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-[15px] py-3 max-h-[min(420px,calc(100dvh-16rem))] [scrollbar-width:thin]"
+        >
+          {messages.map((m) => (
+            <MessageBubble key={m.id} role={m.role} text={m.text} usedAi={m.usedAi} />
+          ))}
+          {sending && (
+            <div className="flex justify-start">
+              <div className="rounded-[31px] bg-stone-200/90 px-4 py-3">
+                <p className="font-['Montserrat'] text-sm font-semibold text-stone-600 animate-pulse">Печатаю…</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {sendError && (
+          <p className="mx-[15px] shrink-0 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+            {sendError}
+          </p>
+        )}
+
+        <div className="shrink-0 border-t border-stone-100 px-[15px] pb-3 pt-2">
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-stone-400">Быстрый вопрос</p>
+          <div className="mb-3 flex flex-wrap gap-1.5">
+            {SUGGESTIONS.map((s) => (
+              <button
+                key={s}
+                type="button"
+                disabled={sending}
+                onClick={() => onSend(s)}
+                className="rounded-full border border-wine-200 bg-wine-50/80 px-2.5 py-1 text-[11px] font-semibold text-wine-900 transition hover:bg-wine-100 disabled:opacity-40"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+          <form onSubmit={submit} className="flex gap-2">
+            <input
+              type="text"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="Напишите сообщение…"
+              disabled={sending}
+              maxLength={2000}
+              className="h-[52px] min-w-0 flex-1 rounded-[31px] border border-stone-200 bg-[#E9E6E6] px-4 font-['Montserrat'] text-[clamp(14px,2.5vw,17px)] text-stone-800 outline-none ring-wine-400/30 placeholder:text-stone-400 focus:ring-2 disabled:opacity-50"
+              aria-label="Сообщение ассистенту"
+            />
+            <button
+              type="submit"
+              disabled={sending || !draft.trim()}
+              className="h-[52px] shrink-0 rounded-[31px] bg-[#B12030] px-5 font-['Montserrat'] text-sm font-bold text-white shadow-md transition hover:brightness-110 disabled:opacity-40"
+            >
+              Отправить
+            </button>
+          </form>
+        </div>
+      </div>
     </div>
   )
+}
+
+let msgId = 0
+function nextId() {
+  msgId += 1
+  return `m-${msgId}`
 }
 
 /**
@@ -123,13 +223,65 @@ function SequentialAiChatPanel({ open, onClose, titleId }) {
  */
 export function SequentialAiChatCard() {
   const [panelOpen, setPanelOpen] = useState(false)
+  const [messages, setMessages] = useState([])
+  const [draft, setDraft] = useState('')
+  const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState(null)
+  const welcomedRef = useRef(false)
+  const listRef = useRef(null)
   const titleId = useId()
+
+  const places = useTripStore((s) => s.places)
   const sequentialAiChatCloseSignal = useSommelierUiStore((s) => s.sequentialAiChatCloseSignal)
   const signalCloseSommelier = useSommelierUiStore((s) => s.signalCloseSommelier)
 
   useEffect(() => {
     if (sequentialAiChatCloseSignal > 0) setPanelOpen(false)
   }, [sequentialAiChatCloseSignal])
+
+  useEffect(() => {
+    if (!panelOpen) return
+    if (welcomedRef.current) return
+    welcomedRef.current = true
+    setMessages([{ id: nextId(), role: 'assistant', text: WELCOME_TEXT }])
+  }, [panelOpen])
+
+  const sendMessage = useCallback(
+    async (rawText) => {
+      const text = String(rawText || '').trim()
+      if (!text || sending) return
+      setSendError(null)
+      const history = messages.slice(-12).map((m) => ({ role: m.role, text: m.text }))
+      const route_place_ids = (places || []).map((p) => p.id).filter(Boolean)
+      setSending(true)
+      setMessages((prev) => [...prev, { id: nextId(), role: 'user', text }])
+      try {
+        const data = await postSequentialChat({
+          message: text,
+          route_place_ids,
+          history,
+        })
+        const reply = typeof data?.reply === 'string' ? data.reply : 'Не удалось разобрать ответ.'
+        const usedAi = Boolean(data?.used_ai)
+        setMessages((prev) => [...prev, { id: nextId(), role: 'assistant', text: reply, usedAi }])
+      } catch (e) {
+        const detail = e.response?.data?.detail || e.message || 'Ошибка сети'
+        setSendError(String(detail))
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: nextId(),
+            role: 'assistant',
+            text: 'Сейчас не получилось связаться с ассистентом. Проверьте соединение и попробуйте ещё раз.',
+            usedAi: false,
+          },
+        ])
+      } finally {
+        setSending(false)
+      }
+    },
+    [messages, places, sending],
+  )
 
   return (
     <>
@@ -164,7 +316,23 @@ export function SequentialAiChatCard() {
         </div>
       )}
 
-      <SequentialAiChatPanel open={panelOpen} onClose={() => setPanelOpen(false)} titleId={titleId} />
+      <SequentialAiChatPanel
+        open={panelOpen}
+        onClose={() => setPanelOpen(false)}
+        titleId={titleId}
+        messages={messages}
+        sending={sending}
+        sendError={sendError}
+        onSend={sendMessage}
+        draft={draft}
+        setDraft={setDraft}
+        listRef={listRef}
+      />
     </>
   )
 }
+</think>
+Исправляю логику отправки: удаляю дубликат и ошибку в `history`.
+
+<｜tool▁calls▁begin｜><｜tool▁call▁begin｜>
+Read
