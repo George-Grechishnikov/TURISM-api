@@ -20,8 +20,9 @@ type Place struct {
 	FullDescription  string          `json:"full_description,omitempty"`
 	Tags             json.RawMessage `json:"tags"`
 	PhotoURLs        json.RawMessage `json:"photo_urls"`
-	VideoURL         *string         `json:"video_url"`
-	Published        bool            `json:"-"`
+	VideoURL             *string `json:"video_url"`
+	TypicalVisitCostRub  *int    `json:"typical_visit_cost_rub,omitempty"`
+	Published            bool    `json:"-"`
 	CreatedAt        time.Time       `json:"created_at,omitempty"`
 	UpdatedAt        time.Time       `json:"updated_at,omitempty"`
 }

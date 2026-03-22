@@ -97,19 +97,67 @@ func (s *Server) handleSommelier(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, out)
 }
 
+func effectiveBudgetRange(body *buildBody) (minB, maxB int, errMsg string) {
+	minB, maxB = 5000, 1_000_000
+	if body.BudgetMin != nil && *body.BudgetMin >= 0 {
+		minB = *body.BudgetMin
+	}
+	if body.BudgetMax != nil && *body.BudgetMax > 0 {
+		maxB = *body.BudgetMax
+	}
+	if minB > maxB {
+		return 0, 0, "Некорректный диапазон бюджета."
+	}
+	return minB, maxB, ""
+}
+
+func filterWineriesByBudget(wineries []models.Place, minB, maxB int) []models.Place {
+	out := make([]models.Place, 0, len(wineries))
+	for _, w := range wineries {
+		if w.TypicalVisitCostRub == nil {
+			out = append(out, w)
+			continue
+		}
+		c := *w.TypicalVisitCostRub
+		if c >= minB && c <= maxB {
+			out = append(out, w)
+		}
+	}
+	return out
+}
+
+func pickStartLatLon(body *buildBody) (lat, lon float64) {
+	lat, lon = weather.DefaultLat, weather.DefaultLon
+	if body.StartLat == nil || body.StartLon == nil {
+		return lat, lon
+	}
+	a, b := *body.StartLat, *body.StartLon
+	if a < -90 || a > 90 || b < -180 || b > 180 {
+		return lat, lon
+	}
+	if a == 0 && b == 0 {
+		return lat, lon
+	}
+	return a, b
+}
+
 type buildBody struct {
-	CompanionsTags   []string `json:"companions_tags"`
-	MoodTags         []string `json:"mood_tags"`
-	DurationTags     []string `json:"duration_tags"`
-	ExtraTags        []string `json:"extra_tags"`
-	IncludePlaceIDs  []string `json:"include_place_ids"`
-	ExcludePlaceIDs  []string `json:"exclude_place_ids"`
-	MaxStops         *int     `json:"max_stops"`
-	RouteRadiusKm    *float64 `json:"route_radius_km"`
-	MaxLegKm         *float64 `json:"max_leg_km"`
-	StartDate        string   `json:"start_date"`
-	EndDate          string   `json:"end_date"`
-	ManualSequential bool     `json:"manual_sequential"`
+	CompanionsTags   []string   `json:"companions_tags"`
+	MoodTags         []string   `json:"mood_tags"`
+	DurationTags     []string   `json:"duration_tags"`
+	ExtraTags        []string   `json:"extra_tags"`
+	IncludePlaceIDs  []string   `json:"include_place_ids"`
+	ExcludePlaceIDs  []string   `json:"exclude_place_ids"`
+	MaxStops         *int       `json:"max_stops"`
+	RouteRadiusKm    *float64   `json:"route_radius_km"`
+	MaxLegKm         *float64   `json:"max_leg_km"`
+	StartDate        string     `json:"start_date"`
+	EndDate          string     `json:"end_date"`
+	ManualSequential bool       `json:"manual_sequential"`
+	BudgetMin        *int       `json:"budget_min"`
+	BudgetMax        *int       `json:"budget_max"`
+	StartLat         *float64   `json:"start_lat"`
+	StartLon         *float64   `json:"start_lon"`
 }
 
 func (s *Server) handleRouteBuild(w http.ResponseWriter, r *http.Request) {
@@ -162,7 +210,8 @@ func (s *Server) handleRouteBuild(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		ordered := []models.Place{*p}
-		wsnap := weather.FetchTripWeather(weather.DefaultLat, weather.DefaultLon, body.StartDate, body.EndDate)
+		sLat, sLon := pickStartLatLon(&body)
+		wsnap := weather.FetchTripWeather(sLat, sLon, body.StartDate, body.EndDate)
 		weatherMode, _ := wsnap["weather_mode"].(string)
 		wsnap["clothing_tips"] = llm.GenerateClothingTips(s.Cfg.YandexFolderID, s.Cfg.YandexIAMToken, wsnap)
 		legs := routeengine.ComputeTransferLegs(ordered)
@@ -213,11 +262,22 @@ func (s *Server) handleRouteBuild(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 500, "db error")
 		return
 	}
+	minB, maxB, bErr := effectiveBudgetRange(&body)
+	if bErr != "" {
+		writeErr(w, 400, bErr)
+		return
+	}
+	wineries = filterWineriesByBudget(wineries, minB, maxB)
+	if len(wineries) == 0 {
+		writeErr(w, 400, "Нет виноделен в выбранном диапазоне бюджета. Расширьте лимиты.")
+		return
+	}
 	lodging, _ := store.ListPublishedByCategory(r.Context(), s.Pool, routeengine.CategoryLodging)
 	food, _ := store.ListPublishedByCategory(r.Context(), s.Pool, routeengine.CategoryFood)
 	transfer, _ := store.ListPublishedByCategory(r.Context(), s.Pool, routeengine.CategoryTransfer)
 
-	wsnap := weather.FetchTripWeather(weather.DefaultLat, weather.DefaultLon, body.StartDate, body.EndDate)
+	sLat, sLon := pickStartLatLon(&body)
+	wsnap := weather.FetchTripWeather(sLat, sLon, body.StartDate, body.EndDate)
 	bad, _ := wsnap["is_bad_outdoor"].(bool)
 	weatherMode, _ := wsnap["weather_mode"].(string)
 	wsnap["clothing_tips"] = llm.GenerateClothingTips(s.Cfg.YandexFolderID, s.Cfg.YandexIAMToken, wsnap)
@@ -226,6 +286,7 @@ func (s *Server) handleRouteBuild(w http.ResponseWriter, r *http.Request) {
 		wineries, lodging, food, transfer,
 		body.ExtraTags, body.DurationTags, bad, weatherMode, maxW, radius, maxLeg,
 		winerySlugAllowlist,
+		sLat, sLon,
 	)
 	if len(ordered) == 0 {
 		writeErr(w, 400, "Нет опубликованных винодельни для маршрута (category=winery).")
@@ -422,6 +483,90 @@ func (s *Server) handleRoutePatch(w http.ResponseWriter, r *http.Request) {
 		placeObjs = append(placeObjs, obj)
 	}
 	writeJSON(w, 200, map[string]any{"route": mapRoutePlan(saved), "places": placeObjs})
+}
+
+func (s *Server) handleRouteGet(w http.ResponseWriter, r *http.Request) {
+	vid, ok := VisitorID(r.Context())
+	if !ok {
+		writeErr(w, 400, "no visitor")
+		return
+	}
+	ridStr := strings.TrimSuffix(chi.URLParam(r, "routeID"), "/")
+	routeID, err := uuid.Parse(ridStr)
+	if err != nil {
+		writeErr(w, 400, "bad route id")
+		return
+	}
+	plan, err := store.GetRoutePlanForVisitor(r.Context(), s.Pool, routeID, vid)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeErr(w, 404, "not found")
+			return
+		}
+		writeErr(w, 500, "db error")
+		return
+	}
+	var idStrs []string
+	_ = json.Unmarshal(plan.OrderedPlaceIDs, &idStrs)
+	orderedIDs := parseUUIDs(idStrs)
+	if len(orderedIDs) == 0 {
+		writeJSON(w, 200, map[string]any{"route": mapRoutePlan(plan), "places": []map[string]any{}})
+		return
+	}
+	byID, err := store.PlacesByIDs(r.Context(), s.Pool, orderedIDs)
+	if err != nil {
+		writeErr(w, 500, "db error")
+		return
+	}
+	var orderedModels []models.Place
+	for _, id := range orderedIDs {
+		if p, ok := byID[id]; ok {
+			orderedModels = append(orderedModels, p)
+		}
+	}
+	wsnap := map[string]any{}
+	_ = json.Unmarshal(plan.WeatherSnapshot, &wsnap)
+	weatherMode, _ := wsnap["weather_mode"].(string)
+	placeObjs := make([]map[string]any, 0, len(orderedModels))
+	for i := range orderedModels {
+		obj := placeListJSON(&orderedModels[i])
+		obj["weather_fit"] = routeengine.PlaceWeatherFit(orderedModels[i], weatherMode)
+		placeObjs = append(placeObjs, obj)
+	}
+	writeJSON(w, 200, map[string]any{"route": mapRoutePlan(plan), "places": placeObjs})
+}
+
+func (s *Server) handleProfileMe(w http.ResponseWriter, r *http.Request) {
+	if strings.TrimSpace(s.Cfg.JWTSecret) == "" {
+		writeErr(w, 503, "JWT не настроен на сервере.")
+		return
+	}
+	h := r.Header.Get("Authorization")
+	const prefix = "Bearer "
+	if !strings.HasPrefix(h, prefix) {
+		writeErr(w, 401, "Нужен заголовок Authorization: Bearer …")
+		return
+	}
+	tok := strings.TrimSpace(strings.TrimPrefix(h, prefix))
+	if tok == "" {
+		writeErr(w, 401, "Пустой токен")
+		return
+	}
+	uid, err := auth.ParseAccess(s.Cfg.JWTSecret, tok)
+	if err != nil {
+		writeErr(w, 401, "Недействительный или просроченный токен")
+		return
+	}
+	uname, err := store.GetUserByID(r.Context(), s.Pool, uid)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeErr(w, 401, "Пользователь не найден")
+			return
+		}
+		writeErr(w, 500, "db error")
+		return
+	}
+	writeJSON(w, 200, map[string]any{"user_id": uid, "username": uname})
 }
 
 func (s *Server) handleCollect(w http.ResponseWriter, r *http.Request) {

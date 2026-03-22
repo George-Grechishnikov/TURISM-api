@@ -282,8 +282,12 @@ func ComposeRouteWithServices(
 	maxWineries int,
 	routeRadiusKm, maxLegKm float64,
 	winerySlugAllowlist []string,
+	startLat, startLon float64,
 ) []models.Place {
-	slat, slon := DefaultStartLat, DefaultStartLon
+	slat, slon := startLat, startLon
+	if slat == 0 && slon == 0 {
+		slat, slon = DefaultStartLat, DefaultStartLon
+	}
 	pool := filterPlacesWithinRadius(wineries, slat, slon, routeRadiusKm)
 	if len(pool) == 0 {
 		pool = filterPlacesWithinRadius(wineries, slat, slon, routeRadiusKm*2)

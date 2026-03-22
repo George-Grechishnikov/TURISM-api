@@ -45,6 +45,26 @@ func IssuePair(secret string, userID int64) (access, refresh string, err error) 
 	return access, refresh, err
 }
 
+func ParseAccess(secret, token string) (userID int64, err error) {
+	if secret == "" || token == "" {
+		return 0, errors.New("invalid token")
+	}
+	parsed, err := jwt.ParseWithClaims(token, &claims{}, func(t *jwt.Token) (any, error) {
+		if t.Method != jwt.SigningMethodHS256 {
+			return nil, fmt.Errorf("unexpected method")
+		}
+		return []byte(secret), nil
+	})
+	if err != nil || !parsed.Valid {
+		return 0, errors.New("invalid token")
+	}
+	c, ok := parsed.Claims.(*claims)
+	if !ok || c.TokenType != "access" {
+		return 0, errors.New("invalid access")
+	}
+	return c.UserID, nil
+}
+
 func ParseRefresh(secret, token string) (userID int64, err error) {
 	parsed, err := jwt.ParseWithClaims(token, &claims{}, func(t *jwt.Token) (any, error) {
 		if t.Method != jwt.SigningMethodHS256 {

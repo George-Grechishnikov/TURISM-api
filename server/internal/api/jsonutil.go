@@ -35,6 +35,9 @@ func placeListJSON(p *models.Place) map[string]any {
 	} else {
 		out["video_url"] = nil
 	}
+	if p.TypicalVisitCostRub != nil {
+		out["typical_visit_cost_rub"] = *p.TypicalVisitCostRub
+	}
 	return out
 }
 

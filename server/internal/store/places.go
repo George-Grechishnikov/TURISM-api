@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -14,20 +15,25 @@ func scanPlace(row interface {
 }) (*models.Place, error) {
 	var p models.Place
 	var video *string
+	var cost sql.NullInt64
 	err := row.Scan(
 		&p.ID, &p.Name, &p.Slug, &p.Latitude, &p.Longitude, &p.Region, &p.Category,
 		&p.IsWinery, &p.ShortDescription, &p.FullDescription, &p.Tags, &p.PhotoURLs,
-		&video, &p.Published, &p.CreatedAt, &p.UpdatedAt,
+		&video, &cost, &p.Published, &p.CreatedAt, &p.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
 	}
 	p.VideoURL = video
+	if cost.Valid {
+		v := int(cost.Int64)
+		p.TypicalVisitCostRub = &v
+	}
 	return &p, nil
 }
 
 const placeCols = `id, name, slug, latitude, longitude, region, category, is_winery,
-  short_description, full_description, tags, photo_urls, video_url, published, created_at, updated_at`
+  short_description, full_description, tags, photo_urls, video_url, typical_visit_cost_rub, published, created_at, updated_at`
 
 func ListPublishedPlaces(ctx context.Context, pool *pgxpool.Pool) ([]models.Place, error) {
 	rows, err := pool.Query(ctx, `

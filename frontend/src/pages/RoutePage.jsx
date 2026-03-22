@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { PlaceDetailModal } from '../components/PlaceDetailModal'
 import { PlaceHoverCard } from '../components/PlaceHoverCard'
 import { PlacePhotoImg } from '../components/PlacePhotoImg'
 import { RouteMap } from '../components/RouteMap'
 import { SequentialAiChatCard } from '../components/SequentialAiChatCard'
-import { fetchPlaces } from '../lib/api'
+import { fetchPlaces, fetchRoute } from '../lib/api'
 import { primaryPhotoUrl } from '../lib/placePhoto'
 import { geocodeSearchQuery } from '../lib/yandexGeocode'
 import {
@@ -16,7 +16,8 @@ import {
   yandexMapsFullRouteUrl,
 } from '../lib/yandexNavLink'
 import { ROUTE_ENTRY_SEQUENTIAL_AI } from '../lib/routeEntry'
-import { hasSequentialAiTourSession } from '../lib/sequentialAiSession'
+import { clearRouteQueryParam, isRouteIdString } from '../lib/routeQuery'
+import { clearSequentialAiTourSession, hasSequentialAiTourSession } from '../lib/sequentialAiSession'
 import { useSommelierUiStore } from '../store/sommelierUiStore'
 import { useTripStore } from '../store/tripStore'
 
@@ -99,6 +100,7 @@ function ChevronDownIcon({ open, className = 'h-5 w-5 shrink-0 text-stone-500 tr
 export function RoutePage() {
   const location = useLocation()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const requestSommelierOpen = useSommelierUiStore((s) => s.requestOpen)
   const {
     route,
@@ -179,6 +181,42 @@ export function RoutePage() {
       c = true
     }
   }, [])
+
+  /** Восстановление маршрута по ?route=uuid (тот же cookie посетителя). */
+  useEffect(() => {
+    const rid = searchParams.get('route')?.trim() ?? ''
+    if (!isRouteIdString(rid)) return
+    const cur = useTripStore.getState().route?.id
+    if (cur === rid) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const data = await fetchRoute(rid)
+        if (cancelled) return
+        clearSequentialAiTourSession()
+        useTripStore.setState({
+          route: data.route,
+          places: data.places ?? [],
+          sequentialAiMode: false,
+          sequentialAiChatActive: false,
+          error: null,
+        })
+      } catch (e) {
+        if (cancelled) return
+        if (e.response?.status === 404) {
+          clearRouteQueryParam()
+          useTripStore.setState({
+            route: null,
+            places: [],
+            error: 'Маршрут не найден или сохранён в другом браузере.',
+          })
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [searchParams])
 
   /** С главной «Последовательный тур с AI»: пустые остановки, все места в «Добавить» */
   useEffect(() => {
@@ -330,16 +368,22 @@ export function RoutePage() {
                 >
                   Сомелье
                 </button>
-                <Link
-                  to="/quiz"
-                  onClick={() => clearSequentialAiChat()}
-                  className="rounded-full bg-wine-50 px-2.5 py-1 text-[11px] font-semibold text-wine-800 ring-1 ring-wine-200/60 transition hover:bg-wine-100"
-                >
-                  Изменить ответы
-                </Link>
-              </div>
+              <Link
+                to="/quiz"
+                onClick={() => clearSequentialAiChat()}
+                className="rounded-full bg-wine-50 px-2.5 py-1 text-[11px] font-semibold text-wine-800 ring-1 ring-wine-200/60 transition hover:bg-wine-100"
+              >
+                Изменить ответы
+              </Link>
+              <Link
+                to="/places"
+                className="rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-stone-700 ring-1 ring-stone-200/80 transition hover:bg-stone-50"
+              >
+                Винодельни
+              </Link>
             </div>
           </div>
+        </div>
 
           <div className="route-levitate shrink-0 overflow-hidden rounded-[22px]">
             <button
@@ -504,6 +548,12 @@ export function RoutePage() {
                 className="rounded-full bg-wine-50 px-2.5 py-1 text-[11px] font-semibold text-wine-800 ring-1 ring-wine-200/60 transition hover:bg-wine-100"
               >
                 Изменить ответы
+              </Link>
+              <Link
+                to="/places"
+                className="rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-stone-700 ring-1 ring-stone-200/80 transition hover:bg-stone-50"
+              >
+                Винодельни
               </Link>
             </div>
           </div>

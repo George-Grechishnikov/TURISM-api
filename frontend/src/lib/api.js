@@ -1,11 +1,21 @@
 import axios from 'axios'
 
+import { getAuthToken } from './authHeader'
+
 const baseURL = import.meta.env.VITE_API_BASE ?? ''
 
 export const api = axios.create({
   baseURL,
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
+})
+
+api.interceptors.request.use((config) => {
+  const t = getAuthToken()
+  if (t) {
+    config.headers.Authorization = `Bearer ${t}`
+  }
+  return config
 })
 
 export async function collectSignals(signals) {
@@ -30,6 +40,11 @@ export async function buildRoute(body) {
 
 export async function patchRoute(routeId, body) {
   const { data } = await api.patch(`/api/routes/${routeId}/`, body)
+  return data
+}
+
+export async function fetchRoute(routeId) {
+  const { data } = await api.get(`/api/routes/${routeId}/`)
   return data
 }
 

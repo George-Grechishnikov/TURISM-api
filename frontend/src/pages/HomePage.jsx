@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 
+import { SiteHeader } from '../components/SiteHeader'
 import { ROUTE_ENTRY_SEQUENTIAL_AI } from '../lib/routeEntry'
 import { useTripStore } from '../store/tripStore'
 import heroImage from '../assets/hero.png'
@@ -19,16 +20,7 @@ export function HomePage() {
           aria-hidden
         />
 
-        <header className="absolute left-1/2 top-[23px] flex -translate-x-1/2 items-start gap-[83px] font-['Montserrat'] uppercase text-[#FCF3B4]">
-          <div className="text-[40px] font-bold leading-[100.79%] tracking-[0.03em]">ЕТЕРНИУМ</div>
-          <nav className="mt-[2px] flex gap-[70px] whitespace-nowrap text-[30px] font-medium leading-[100.79%] tracking-[0.03em]">
-            <span>о нас</span>
-            <span>маршруты</span>
-            <span>винодельни</span>
-            <span>контакты</span>
-            <span>faq</span>
-          </nav>
-        </header>
+        <SiteHeader variant="hero" />
 
         <h1 className="absolute left-1/2 top-[152.4px] w-[1086.85px] -translate-x-1/2 text-center font-['Montserrat'] text-[95px] font-bold uppercase leading-[1.0] tracking-[0.03em] text-[#FCF3B5]">
           ТВОЙ ГОТОВЫЙ
@@ -104,6 +96,42 @@ export function HomePage() {
           </Link>
         </div>
       </div>
+
+      <section id="about" className="mx-auto max-w-3xl scroll-mt-24 px-6 py-16 text-stone-800">
+        <h2 className="text-2xl font-bold text-wine-900">О нас</h2>
+        <p className="mt-4 leading-relaxed">
+          Етерниум помогает собрать винный маршрут по Краснодарскому краю: короткий опрос, карта с остановками и
+          подсказки с учётом погоды. Данные о точках обновляются из каталога виноделен.
+        </p>
+      </section>
+      <section id="contact" className="border-t border-stone-200 bg-stone-50 px-6 py-16 scroll-mt-24">
+        <div className="mx-auto max-w-3xl">
+          <h2 className="text-2xl font-bold text-wine-900">Контакты</h2>
+          <p className="mt-4 text-stone-700">
+            Вопросы по сервису — через форму обратной связи (демо). Для бронирований обращайтесь напрямую в
+            выбранную винодельню.
+          </p>
+        </div>
+      </section>
+      <section id="faq" className="mx-auto max-w-3xl scroll-mt-24 px-6 py-16">
+        <h2 className="text-2xl font-bold text-wine-900">FAQ</h2>
+        <dl className="mt-6 space-y-6">
+          <div>
+            <dt className="font-semibold text-wine-950">Нужен ли ключ Яндекс.Карт?</dt>
+            <dd className="mt-2 text-stone-600">
+              Для отображения карты в режиме разработки задайте <code className="rounded bg-stone-100 px-1">VITE_YANDEX_MAPS_API_KEY</code> в{' '}
+              <code className="rounded bg-stone-100 px-1">frontend/.env</code>.
+            </dd>
+          </div>
+          <div>
+            <dt className="font-semibold text-wine-950">Как сохранить маршрут?</dt>
+            <dd className="mt-2 text-stone-600">
+              После сборки маршрута скопируйте адрес страницы с параметром <code className="rounded bg-stone-100 px-1">?route=…</code> — при
+              открытии в том же браузере маршрут подтянется снова.
+            </dd>
+          </div>
+        </dl>
+      </section>
     </div>
   )
 }

@@ -50,10 +50,12 @@ func NewRouter(s *Server) http.Handler {
 
 	r.Route("/api/routes", func(r chi.Router) {
 		r.Post("/build/", s.handleRouteBuild)
+		r.Get("/{routeID}/", s.handleRouteGet)
 		r.Patch("/{routeID}/", s.handleRoutePatch)
 	})
 
 	r.Route("/api/profile", func(r chi.Router) {
+		r.Get("/me/", s.handleProfileMe)
 		r.Post("/collect/", s.handleCollect)
 		r.Post("/register/", s.handleRegister)
 	})

@@ -25,13 +25,14 @@ type krasnodarFile struct {
 	SourceArticle string `json:"source_article"`
 	NoteRU        string `json:"note_ru"`
 	Places        []struct {
-		Name   string   `json:"name"`
-		Slug   string   `json:"slug"`
-		Cat    string   `json:"category"`
-		Lat    float64  `json:"lat"`
-		Lon    float64  `json:"lon"`
-		Short  string   `json:"short"`
-		Tags   []string `json:"tags"`
+		Name                string   `json:"name"`
+		Slug                string   `json:"slug"`
+		Cat                 string   `json:"category"`
+		Lat                 float64  `json:"lat"`
+		Lon                 float64  `json:"lon"`
+		Short               string   `json:"short"`
+		Tags                []string `json:"tags"`
+		TypicalVisitCostRub *int     `json:"typical_visit_cost_rub,omitempty"`
 	} `json:"places"`
 }
 
@@ -78,8 +79,8 @@ func SyncKrasnodarBundled(ctx context.Context, pool *pgxpool.Pool) error {
 		_, err = pool.Exec(ctx, `
 			INSERT INTO places_place (
 				id, name, slug, latitude, longitude, region, category, is_winery,
-				short_description, full_description, tags, photo_urls, video_url, published
-			) VALUES ($1,$2,$3,$4,$5,'Краснодарский край',$6,$7,$8,$9,$10::jsonb,$11::jsonb,NULL,true)
+				short_description, full_description, tags, photo_urls, video_url, typical_visit_cost_rub, published
+			) VALUES ($1,$2,$3,$4,$5,'Краснодарский край',$6,$7,$8,$9,$10::jsonb,$11::jsonb,NULL,$12,true)
 			ON CONFLICT (slug) DO UPDATE SET
 				name = EXCLUDED.name,
 				latitude = EXCLUDED.latitude,
@@ -90,10 +91,11 @@ func SyncKrasnodarBundled(ctx context.Context, pool *pgxpool.Pool) error {
 				full_description = EXCLUDED.full_description,
 				tags = EXCLUDED.tags,
 				photo_urls = EXCLUDED.photo_urls,
+				typical_visit_cost_rub = EXCLUDED.typical_visit_cost_rub,
 				published = true,
 				updated_at = NOW()`,
 			id, row.Name, row.Slug, row.Lat, row.Lon, cat, isWinery,
-			row.Short, full, tags, photos,
+			row.Short, full, tags, photos, row.TypicalVisitCostRub,
 		)
 		if err != nil {
 			return fmt.Errorf("upsert %s: %w", row.Slug, err)

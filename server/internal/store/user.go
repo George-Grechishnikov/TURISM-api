@@ -25,3 +25,8 @@ func GetUserPasswordHash(ctx context.Context, pool *pgxpool.Pool, username strin
 	err := pool.QueryRow(ctx, `SELECT id, password_hash FROM turizm_users WHERE username = $1`, username).Scan(&id, &hash)
 	return id, hash, err
 }
+
+func GetUserByID(ctx context.Context, pool *pgxpool.Pool, id int64) (username string, err error) {
+	err = pool.QueryRow(ctx, `SELECT username FROM turizm_users WHERE id = $1`, id).Scan(&username)
+	return username, err
+}
