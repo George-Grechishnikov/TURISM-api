@@ -384,7 +384,16 @@ export function RouteMap({
             if (cancelled) return
             routeGeo = built
             if (!built) {
-              setRoadRouteHint('Не удалось построить путь по дорогам (проверьте ключ API или сеть).')
+              setRoadRouteHint(
+                [
+                  'Не удалось построить маршрут по дорогам.',
+                  '',
+                  'Чаще всего:',
+                  '1) Ключ не попал в сборку: в .env задайте VITE_YANDEX_MAPS_API_KEY и пересоберите web (docker compose build web --no-cache).',
+                  '2) В кабинете developer.tech.yandex.ru для ключа добавьте HTTP Referrer: http://localhost:8080 и http://127.0.0.1:8080 (или ваш домен).',
+                  '3) У ключа должен быть подключён сервис «JavaScript API и HTTP Геокодер».',
+                ].join('\n'),
+              )
             } else if (built.type === 'multi') {
               built.geoObject.model.events.add('requestsuccess', () => {
                 if (cancelled) return
@@ -531,8 +540,15 @@ export function RouteMap({
         </div>
       )}
       {roadRouteHint && (
-        <div className="pointer-events-none absolute bottom-3 left-1/2 z-[5] max-w-[min(92vw,22rem)] -translate-x-1/2 rounded-xl border border-amber-200/90 bg-amber-50/95 px-3 py-2 text-center text-[11px] font-medium text-amber-950 shadow-sm">
-          {roadRouteHint}
+        <div className="pointer-events-none absolute bottom-3 left-1/2 z-[5] max-w-[min(94vw,24rem)] -translate-x-1/2">
+          <div className="pointer-events-auto max-h-[min(40vh,320px)] overflow-y-auto overscroll-contain rounded-xl border border-amber-200/90 bg-amber-50/98 px-3 py-2.5 text-left text-[10px] font-medium leading-snug text-amber-950 shadow-sm [scrollbar-width:thin]">
+            <p className="whitespace-pre-line">{roadRouteHint}</p>
+            {!String(import.meta.env.VITE_YANDEX_MAPS_API_KEY || '').trim() && (
+              <p className="mt-2 border-t border-amber-200/80 pt-2 text-[10px] text-amber-900/90">
+                В этой сборке ключ пустой при <code className="rounded bg-amber-100/80 px-1">npm run build</code> — задайте переменную до сборки образа.
+              </p>
+            )}
+          </div>
         </div>
       )}
       <div
