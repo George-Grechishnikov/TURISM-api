@@ -83,8 +83,9 @@ func SyncKrasnodarBundled(ctx context.Context, pool *pgxpool.Pool) error {
 		_, err = pool.Exec(ctx, `
 			INSERT INTO places_place (
 				id, name, slug, latitude, longitude, region, category, is_winery,
-				short_description, full_description, tags, photo_urls, video_url, typical_visit_cost_rub, published
-			) VALUES ($1,$2,$3,$4,$5,'Краснодарский край',$6,$7,$8,$9,$10::jsonb,$11::jsonb,NULL,$12,true)
+				short_description, full_description, tags, photo_urls, video_url, typical_visit_cost_rub, published,
+				created_at, updated_at
+			) VALUES ($1,$2,$3,$4,$5,'Краснодарский край',$6,$7,$8,$9,$10::jsonb,$11::jsonb,NULL,$12,true, NOW(), NOW())
 			ON CONFLICT (slug) DO UPDATE SET
 				name = EXCLUDED.name,
 				latitude = EXCLUDED.latitude,

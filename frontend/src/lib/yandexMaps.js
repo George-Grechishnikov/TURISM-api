@@ -47,7 +47,7 @@ export function loadYandexMapsApi() {
     const key = String(import.meta.env.VITE_YANDEX_MAPS_API_KEY ?? '')
       .trim()
       .replace(/^['"]|['"]$/g, '')
-    const qs = new URLSearchParams({ lang: 'ru_RU' })
+    const qs = new URLSearchParams({ lang: 'ru_RU', load: 'package.full' })
     if (key) qs.set('apikey', key)
     else if (import.meta.env.DEV) {
       console.warn(

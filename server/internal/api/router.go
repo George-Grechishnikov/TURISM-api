@@ -79,7 +79,8 @@ func (s *Server) visitorMiddleware(next http.Handler) http.Handler {
 			vid = uuid.New()
 		}
 		ctx := context.WithValue(r.Context(), visitorKey, vid)
-		next.ServeHTTP(w, r.WithContext(ctx))
+		// Set-Cookie до ответа хендлера: иначе после Write() заголовки уже ушли — браузер не сохранит
+		// turizm_vid, следующий запрос получит нового «посетителя» и маршрут вернёт 404 not found.
 		http.SetCookie(w, &http.Cookie{
 			Name:     s.Cfg.VisitorCookieName,
 			Value:    vid.String(),
@@ -88,6 +89,7 @@ func (s *Server) visitorMiddleware(next http.Handler) http.Handler {
 			SameSite: http.SameSiteLaxMode,
 			HttpOnly: false,
 		})
-		_ = store.UpsertVisitorTouch(r.Context(), s.Pool, vid)
+		_ = store.UpsertVisitorTouch(ctx, s.Pool, vid)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

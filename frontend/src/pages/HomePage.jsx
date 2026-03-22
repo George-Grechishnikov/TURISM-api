@@ -13,7 +13,7 @@ export function HomePage() {
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-white">
-      <div className="relative mx-auto h-[1080px] w-[1920px] max-w-none origin-top-left overflow-x-hidden">
+      <div className="relative mx-auto min-h-[1080px] h-[1160px] w-[1920px] max-w-none origin-top-left overflow-x-hidden">
         <img src={heroImage} alt="image 243" className="absolute left-0 top-0 h-[1280px] w-[1920px] object-cover" />
         <div
           className="pointer-events-none absolute left-0 top-[134px] h-[312px] w-[1882px] rounded-full bg-[#040404] blur-[250px]"
@@ -31,13 +31,6 @@ export function HomePage() {
         <p className="absolute left-1/2 top-[400px] w-[830px] max-w-[calc(100vw-2rem)] -translate-x-1/2 text-center font-['Montserrat'] text-[30px] font-medium leading-[100.79%] tracking-[0.03em] text-[#FCF3B4]">
           Перестаньте искать - начните чувствовать
         </p>
-
-        <a
-          href="#about"
-          className="absolute left-1/2 top-[468px] z-30 max-w-[min(90vw,520px)] -translate-x-1/2 text-center font-['Montserrat'] text-[15px] font-semibold leading-snug tracking-wide text-[#FCF3B4] underline decoration-[#FCF3B4]/50 underline-offset-4 transition hover:text-white hover:decoration-white"
-        >
-          О нас: что умеет сервис, для кого он и как устроен маршрут — ниже по странице
-        </a>
 
         <div className="group absolute left-[398px] top-[540px] h-[515px] w-[490px]">
           <Link
@@ -105,7 +98,7 @@ export function HomePage() {
 
         <a
           href="#about"
-          className="absolute bottom-6 left-1/2 z-30 flex -translate-x-1/2 flex-col items-center gap-1 font-['Montserrat'] text-sm font-bold tracking-wide text-[#FCF3B4] transition hover:text-white"
+          className="absolute left-1/2 top-[1070px] z-30 flex -translate-x-1/2 flex-col items-center gap-1 font-['Montserrat'] text-sm font-bold tracking-wide text-[#FCF3B4] transition hover:text-white"
         >
           <span className="rounded-full border border-[#FCF3B4]/50 bg-black/30 px-5 py-2.5 backdrop-blur-sm">
             Раздел «О нас» — прокрутите вниз или нажмите здесь

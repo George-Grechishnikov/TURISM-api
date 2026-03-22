@@ -45,8 +45,8 @@ export default function App() {
   )
 }
 
-/** На /quiz только форма опроса — без плавающего сомелье (чтобы не перекрывал макет). */
-const SOMMELIER_PATHS = new Set(['/', '/route', '/places', '/routes'])
+/** Плавающий сомелье: не на главной и не на /quiz (макет опроса). */
+const SOMMELIER_PATHS = new Set(['/route', '/places', '/routes'])
 
 function AppRoutes() {
   const location = useLocation()
@@ -61,7 +61,8 @@ function AppRoutes() {
     }
   }, [location.pathname])
 
-  const showSequentialAiChat = location.pathname !== '/quiz' && sequentialAiChatActive
+  const showSequentialAiChat =
+    location.pathname !== '/quiz' && location.pathname !== '/' && sequentialAiChatActive
 
   return (
     <div className="min-h-screen w-full">

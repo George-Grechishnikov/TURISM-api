@@ -5,11 +5,17 @@ export function isRouteIdString(s) {
   return typeof s === 'string' && UUID_RE.test(s.trim())
 }
 
+/** Сравнение id маршрута из URL и из store (регистр / пробелы). */
+export function normRouteId(s) {
+  if (s == null || s === '') return ''
+  return String(s).trim().toLowerCase()
+}
+
 /** Синхронизировать ?route=uuid с текущим маршрутом (без перезагрузки). */
 export function replaceRouteQueryParam(routeId) {
   if (typeof window === 'undefined' || !routeId) return
   const u = new URL(window.location.href)
-  u.searchParams.set('route', String(routeId))
+  u.searchParams.set('route', String(routeId).trim().toLowerCase())
   const q = u.searchParams.toString()
   window.history.replaceState(null, '', q ? `${u.pathname}?${q}` : u.pathname)
 }

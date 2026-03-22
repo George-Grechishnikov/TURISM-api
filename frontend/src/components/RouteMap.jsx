@@ -47,15 +47,22 @@ function dedupeRouteCoords(coords) {
 }
 
 /**
- * Опорные точки для MultiRoute.
+ * Опорные точки для MultiRoute (маршрут по дорогам между точками).
  * drivingRouteStart: null | { kind: 'stops' } | { kind: 'point', latitude, longitude }
+ * Без точки «откуда»: при ≥2 остановках линия идёт по дорогам между остановками подряд.
  */
 function drivingReferencePoints(places, drivingRouteStart) {
-  if (!drivingRouteStart || !places.length) return []
+  if (!places.length) return []
   const stopCoords = dedupeRouteCoords(
-    places.map((p) => [Number(p.latitude), Number(p.longitude)]),
+    places
+      .map((p) => [Number(p.latitude), Number(p.longitude)])
+      .filter((c) => Number.isFinite(c[0]) && Number.isFinite(c[1])),
   )
   if (!stopCoords.length) return []
+
+  if (!drivingRouteStart) {
+    return stopCoords.length >= 2 ? stopCoords : []
+  }
   if (drivingRouteStart.kind === 'stops') {
     return stopCoords.length >= 2 ? stopCoords : []
   }
@@ -83,9 +90,9 @@ function drivingRouteParams() {
 
 function multiRouteViewOptions(stroke) {
   return {
-    routeActiveStrokeWidth: 4,
+    routeActiveStrokeWidth: 5,
     routeActiveStrokeColor: stroke,
-    routeStrokeWidth: 3,
+    routeStrokeWidth: 4,
     routeStrokeColor: stroke,
     wayPointVisible: false,
     viaPointVisible: false,
@@ -115,27 +122,72 @@ function extractMultiRoutePathCoords(multiRoute) {
   }
 }
 
+/**
+ * Подписка на события до map.geoObjects.add; после add вызывайте afterMapAdd(),
+ * иначе requestsuccess иногда срабатывает до навешивания listener.
+ */
 function waitMultiRouteResolved(multiRoute, timeoutMs = 28000) {
-  return new Promise((resolve) => {
-    let settled = false
+  let settled = false
+  let emptyAfterSuccessTid = null
+  let timeoutId = null
+  let tryOkRef = () => {}
+
+  const clearEmptyTimer = () => {
+    if (emptyAfterSuccessTid != null) {
+      window.clearTimeout(emptyAfterSuccessTid)
+      emptyAfterSuccessTid = null
+    }
+  }
+
+  const promise = new Promise((resolve) => {
     const finish = (payload) => {
       if (settled) return
       settled = true
-      window.clearTimeout(tid)
+      clearEmptyTimer()
+      if (timeoutId != null) window.clearTimeout(timeoutId)
       resolve(payload)
     }
-    const tid = window.setTimeout(() => finish({ ok: false, reason: 'timeout' }), timeoutMs)
-    multiRoute.model.events.add('requestsuccess', () => {
+    const checkOk = () => {
       try {
         const routes = multiRoute.model.getRoutes()
-        const ok = Boolean(routes && routes.getLength() > 0)
-        finish({ ok, reason: ok ? 'ok' : 'empty' })
+        return Boolean(routes && routes.getLength() > 0)
       } catch {
-        finish({ ok: false, reason: 'error' })
+        return false
       }
+    }
+    tryOkRef = () => {
+      if (settled) return
+      if (checkOk()) finish({ ok: true, reason: 'ok' })
+    }
+    timeoutId = window.setTimeout(() => finish({ ok: false, reason: 'timeout' }), timeoutMs)
+
+    multiRoute.model.events.add('requestsuccess', () => {
+      queueMicrotask(() => {
+        if (settled) return
+        if (checkOk()) {
+          finish({ ok: true, reason: 'ok' })
+          return
+        }
+        clearEmptyTimer()
+        emptyAfterSuccessTid = window.setTimeout(() => {
+          emptyAfterSuccessTid = null
+          if (settled) return
+          if (checkOk()) finish({ ok: true, reason: 'ok' })
+          else finish({ ok: false, reason: 'empty' })
+        }, 400)
+      })
     })
+    multiRoute.model.events.add('update', () => tryOkRef())
     multiRoute.model.events.add('requestfail', () => finish({ ok: false, reason: 'fail' }))
   })
+
+  const afterMapAdd = () => {
+    queueMicrotask(() => tryOkRef())
+    requestAnimationFrame(() => tryOkRef())
+    window.setTimeout(() => tryOkRef(), 80)
+  }
+
+  return { promise, afterMapAdd }
 }
 
 /**
@@ -156,8 +208,10 @@ async function buildRoadOnlyRoute(ymaps, map, refPoints, stroke, cancelled) {
   }
 
   const fullMr = new ymaps.multiRouter.MultiRoute({ referencePoints: refPoints, params }, visibleOpts)
+  const { promise: fullPromise, afterMapAdd: fullAfterAdd } = waitMultiRouteResolved(fullMr)
   map.geoObjects.add(fullMr)
-  const fullRes = await waitMultiRouteResolved(fullMr)
+  fullAfterAdd()
+  const fullRes = await fullPromise
   if (cancelled()) {
     try {
       map.geoObjects.remove(fullMr)
@@ -182,8 +236,10 @@ async function buildRoadOnlyRoute(ymaps, map, refPoints, stroke, cancelled) {
       { referencePoints: [refPoints[i], refPoints[i + 1]], params },
       hiddenOpts,
     )
+    const { promise: segPromise, afterMapAdd: segAfterAdd } = waitMultiRouteResolved(segMr)
     map.geoObjects.add(segMr)
-    const segRes = await waitMultiRouteResolved(segMr)
+    segAfterAdd()
+    const segRes = await segPromise
     if (cancelled()) {
       try {
         map.geoObjects.remove(segMr)
@@ -277,7 +333,7 @@ function fitMapViewport(map) {
 
 export function RouteMap({
   places,
-  routeColor,
+  routeColor: _routeColorIgnored,
   drivingRouteStart = null,
   showDrivingSetupHint = false,
   onMarkerClick,
@@ -374,7 +430,8 @@ export function RouteMap({
         const CircleLayout = ensureCirclePhotoLayout(ymaps)
         map.geoObjects.removeAll()
 
-        const stroke = routeColor || '#7c2944'
+        // Линия маршрута на карте — фирменный красный по дорогам (не цвет «погоды» из опроса).
+        const stroke = '#B12030'
         let routeGeo = null
         const refPoints = drivingReferencePoints(places, drivingRouteStart)
         if (refPoints.length >= 2) {
@@ -510,7 +567,7 @@ export function RouteMap({
     return () => {
       cancelled = true
     }
-  }, [places, mapReady, routeColor, drivingRouteStart])
+  }, [places, mapReady, drivingRouteStart])
 
   useEffect(() => {
     const map = mapInstanceRef.current
@@ -525,7 +582,7 @@ export function RouteMap({
     <div className={`relative z-0 min-h-0 ${className}`.trim()}>
       {showDrivingSetupHint && (
         <div className="pointer-events-none absolute bottom-3 left-1/2 z-[5] max-w-[min(92vw,22rem)] -translate-x-1/2 rounded-xl border border-sky-200/90 bg-sky-50/95 px-3 py-2 text-center text-[11px] font-medium text-sky-950 shadow-sm">
-          Сначала в панели слева укажите отправление — затем появится маршрут по дорогам.
+          Остановки соединены линией по дорогам. Укажите отправление слева — линия начнётся с вашей точки.
         </div>
       )}
       <div

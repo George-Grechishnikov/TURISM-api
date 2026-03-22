@@ -1,19 +1,77 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 import aiChatChipIcon from '../assets/ai-chat-chip-icon.png'
-import { postSequentialChat } from '../lib/api'
+import { buildRandomCompactPlaceIds } from '../lib/randomCompactRoute'
 import { getCannedSequentialReply } from '../lib/sequentialChatCanned'
+import { normRouteId } from '../lib/routeQuery'
 import { useSommelierUiStore } from '../store/sommelierUiStore'
 import { useTripStore } from '../store/tripStore'
 
 const WELCOME_TEXT =
-  'Привет! Помогу спланировать винный маршрут: что добавить после текущих остановок, как не перегрузить день, напомню про бронирование дегустаций. Задайте вопрос или нажмите подсказку ниже.'
+  'Привет! Помогу составить самый идеальный для вас маршрут по одному запросу. Задайте запрос.'
 
 const SUGGESTIONS = [
   'Что логично добавить дальше?',
   'Как не перегрузить день?',
   'Напомни про бронирование',
 ]
+
+/** Как на странице /quiz — для демо-разбора запроса в теги */
+const QUIZ_COMPANIONS = ['Семья', 'Один', 'Пара', 'Коллеги', 'Друзья']
+const QUIZ_MOOD = ['Романтика', 'Гастрономия', 'Активно', 'Спокойно', 'Исследование']
+const QUIZ_DURATION = ['День', 'Два дня', 'Неделя', 'Три дня', 'Выходные']
+const QUIZ_EXTRA = [
+  'Дегустации',
+  'Фотостопы',
+  'Живописно',
+  'Без спешки',
+  'Уютные места',
+  'Локальная кухня',
+  'С детьми',
+  'Трансфер',
+]
+
+const MIN_MESSAGE_LEN = 4
+const TAG_REGENERATE_DELAY_MS = 3000
+/** После «Да»: фаза 1, затем фаза 2 (ещё 3 с), затем запросы к API */
+const TAG_YES_ROUTE_HINT_MS = 2000
+const TAG_YES_WEATHER_HINT_MS = 3000
+
+function formatApiError(e) {
+  const d = e?.response?.data?.detail
+  if (typeof d === 'string') return d
+  if (Array.isArray(d)) {
+    return d
+      .map((x) => (typeof x === 'string' ? x : x?.msg || JSON.stringify(x)))
+      .filter(Boolean)
+      .join('; ')
+  }
+  if (d && typeof d === 'object') return JSON.stringify(d)
+  return e?.message || 'Не удалось построить маршрут'
+}
+
+function randomFrom(arr) {
+  return arr[Math.floor(Math.random() * arr.length)]
+}
+
+function sampleExtras(count) {
+  const shuffled = [...QUIZ_EXTRA].sort(() => Math.random() - 0.5)
+  return shuffled.slice(0, Math.min(count, shuffled.length))
+}
+
+function buildTagAnalysisMessage() {
+  const extraCount = Math.random() < 0.5 ? 1 : 2
+  const extras = sampleExtras(extraCount)
+  return [
+    'Проанализировав ваш запрос, я перевёл его в теги — вот что получилось:',
+    '',
+    `• С кем: ${randomFrom(QUIZ_COMPANIONS)}`,
+    `• Настроение: ${randomFrom(QUIZ_MOOD)}`,
+    `• Срок: ${randomFrom(QUIZ_DURATION)}`,
+    `• Дополнительно: ${extras.join(', ')}`,
+  ].join('\n')
+}
 
 /** Иконка чипа из макета (PNG с прозрачным фоном) */
 function AiChipIcon({ className = '' }) {
@@ -85,12 +143,16 @@ function SequentialAiChatPanel({
   titleId,
   messages,
   sending,
+  routeProgressHint,
   sendError,
   onSend,
+  onTagProposalYes,
+  onTagProposalNo,
   draft,
   setDraft,
   listRef,
 }) {
+  const chatBusy = sending || !!routeProgressHint
   const onKeyDown = useCallback(
     (e) => {
       if (e.key === 'Escape') onClose()
@@ -112,14 +174,14 @@ function SequentialAiChatPanel({
   useEffect(() => {
     if (!open || !listRef.current) return
     listRef.current.scrollTop = listRef.current.scrollHeight
-  }, [open, messages, sending, listRef])
+  }, [open, messages, sending, routeProgressHint, listRef])
 
   if (!open) return null
 
   function submit(e) {
     e.preventDefault()
     const t = draft.trim()
-    if (!t || sending) return
+    if (!t || chatBusy) return
     onSend(t)
     setDraft('')
   }
@@ -164,18 +226,43 @@ function SequentialAiChatPanel({
           className="mx-auto flex min-h-0 w-full max-w-full flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-[15px] py-3 max-h-[min(420px,calc(100dvh-16rem))] [scrollbar-width:thin]"
         >
           {messages.map((m) => (
-            <MessageBubble
-              key={m.id}
-              role={m.role}
-              text={m.text}
-              usedAi={m.usedAi}
-              replySource={m.replySource}
-            />
+            <div key={m.id} className="flex flex-col">
+              <MessageBubble
+                role={m.role}
+                text={m.text}
+                usedAi={m.usedAi}
+                replySource={m.replySource}
+              />
+              {m.role === 'assistant' && m.tagProposal && !m.tagChoice && (
+                <div className="flex justify-start">
+                  <div className="mt-1.5 flex max-w-[min(414px,92%)] gap-2 pl-1">
+                    <button
+                      type="button"
+                      disabled={chatBusy}
+                      onClick={() => onTagProposalYes(m.id)}
+                      className="rounded-full border border-wine-300 bg-wine-50 px-4 py-1.5 font-['Montserrat'] text-xs font-bold text-wine-900 transition hover:bg-wine-100 disabled:opacity-40"
+                    >
+                      Да
+                    </button>
+                    <button
+                      type="button"
+                      disabled={chatBusy}
+                      onClick={() => onTagProposalNo(m.id)}
+                      className="rounded-full border border-stone-300 bg-white px-4 py-1.5 font-['Montserrat'] text-xs font-bold text-stone-700 transition hover:bg-stone-50 disabled:opacity-40"
+                    >
+                      Нет
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           ))}
-          {sending && (
+          {chatBusy && (
             <div className="flex justify-start">
               <div className="rounded-[31px] bg-stone-200/90 px-4 py-3">
-                <p className="font-['Montserrat'] text-sm font-semibold text-stone-600 animate-pulse">Печатаю…</p>
+                <p className="font-['Montserrat'] text-sm font-semibold text-stone-600 animate-pulse">
+                  {routeProgressHint || 'Печатаю…'}
+                </p>
               </div>
             </div>
           )}
@@ -187,14 +274,14 @@ function SequentialAiChatPanel({
           </p>
         )}
 
-        <div className="shrink-0 border-t border-stone-100 px-[15px] pb-3 pt-2">
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-stone-400">Быстрый вопрос</p>
-          <div className="mb-3 flex flex-wrap gap-1.5">
+        <div className="mt-auto shrink-0 border-t border-stone-100 px-[15px] pb-2 pt-2">
+          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-stone-400">Быстрый вопрос</p>
+          <div className="mb-2 flex flex-wrap gap-1.5">
             {SUGGESTIONS.map((s) => (
               <button
                 key={s}
                 type="button"
-                disabled={sending}
+                disabled={chatBusy}
                 onClick={() => onSend(s)}
                 className="rounded-full border border-wine-200 bg-wine-50/80 px-2.5 py-1 text-[11px] font-semibold text-wine-900 transition hover:bg-wine-100 disabled:opacity-40"
               >
@@ -208,14 +295,14 @@ function SequentialAiChatPanel({
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               placeholder="Напишите сообщение…"
-              disabled={sending}
+              disabled={chatBusy}
               maxLength={2000}
               className="h-[52px] min-w-0 flex-1 rounded-[31px] border border-stone-200 bg-[#E9E6E6] px-4 font-['Montserrat'] text-[clamp(14px,2.5vw,17px)] text-stone-800 outline-none ring-wine-400/30 placeholder:text-stone-400 focus:ring-2 disabled:opacity-50"
               aria-label="Сообщение ассистенту"
             />
             <button
               type="submit"
-              disabled={sending || !draft.trim()}
+              disabled={chatBusy || !draft.trim()}
               className="h-[52px] shrink-0 rounded-[31px] bg-[#B12030] px-5 font-['Montserrat'] text-sm font-bold text-white shadow-md transition hover:brightness-110 disabled:opacity-40"
             >
               Отправить
@@ -237,13 +324,18 @@ function nextId() {
  * Компактная карточка + развёрнутая панель ИИ-Чат (последовательный тур с AI).
  */
 export function SequentialAiChatCard() {
+  const navigate = useNavigate()
   const [panelOpen, setPanelOpen] = useState(false)
   const [messages, setMessages] = useState([])
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
+  const [routeProgressHint, setRouteProgressHint] = useState(null)
   const [sendError, setSendError] = useState(null)
   const welcomedRef = useRef(false)
   const listRef = useRef(null)
+  const tagRegenerateTimerRef = useRef(null)
+  const tagYesTimersRef = useRef([])
+  const tagProposalYesInFlightRef = useRef(false)
   const titleId = useId()
 
   const places = useTripStore((s) => s.places)
@@ -261,14 +353,41 @@ export function SequentialAiChatCard() {
     setMessages([{ id: nextId(), role: 'assistant', text: WELCOME_TEXT }])
   }, [panelOpen])
 
+  useEffect(() => {
+    if (panelOpen) return undefined
+    if (tagRegenerateTimerRef.current != null) {
+      window.clearTimeout(tagRegenerateTimerRef.current)
+      tagRegenerateTimerRef.current = null
+    }
+    for (const t of tagYesTimersRef.current) {
+      if (t != null) window.clearTimeout(t)
+    }
+    tagYesTimersRef.current = []
+    tagProposalYesInFlightRef.current = false
+    setRouteProgressHint(null)
+    setSending(false)
+    return undefined
+  }, [panelOpen])
+
   const sendMessage = useCallback(
     async (rawText) => {
       const text = String(rawText || '').trim()
-      if (!text || sending) return
+      if (!text || sending || routeProgressHint) return
       setSendError(null)
-      const history = messages.slice(-12).map((m) => ({ role: m.role, text: m.text }))
-      const route_place_ids = (places || []).map((p) => p.id).filter(Boolean)
       setMessages((prev) => [...prev, { id: nextId(), role: 'user', text }])
+
+      if (text.length < MIN_MESSAGE_LEN) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: nextId(),
+            role: 'assistant',
+            text: 'Неккоректный запрос',
+            replySource: 'local',
+          },
+        ])
+        return
+      }
 
       const canned = getCannedSequentialReply(text, places)
       if (canned?.text) {
@@ -281,32 +400,100 @@ export function SequentialAiChatCard() {
 
       setSending(true)
       try {
-        const data = await postSequentialChat({
-          message: text,
-          route_place_ids,
-          history,
-        })
-        const reply = typeof data?.reply === 'string' ? data.reply : 'Не удалось разобрать ответ.'
-        const replySource = data?.used_ai ? 'yandex' : 'local'
-        setMessages((prev) => [...prev, { id: nextId(), role: 'assistant', text: reply, replySource }])
-      } catch (e) {
-        const detail = e.response?.data?.detail || e.message || 'Ошибка сети'
-        setSendError(String(detail))
+        await new Promise((r) => setTimeout(r, 5000))
         setMessages((prev) => [
           ...prev,
           {
             id: nextId(),
             role: 'assistant',
-            text: 'Сейчас не получилось связаться с ассистентом. Проверьте соединение и попробуйте ещё раз.',
+            text: buildTagAnalysisMessage(),
             replySource: 'local',
+            tagProposal: true,
           },
         ])
       } finally {
         setSending(false)
       }
     },
-    [messages, places, sending],
+    [messages, places, sending, routeProgressHint],
   )
+
+  const onTagProposalYes = useCallback((msgId) => {
+    if (tagProposalYesInFlightRef.current) return
+    tagProposalYesInFlightRef.current = true
+    setSendError(null)
+    setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, tagChoice: 'yes' } : m)))
+    for (const t of tagYesTimersRef.current) {
+      if (t != null) window.clearTimeout(t)
+    }
+    tagYesTimersRef.current = []
+    setRouteProgressHint('Простраиваю маршрут')
+
+    const t1 = window.setTimeout(() => {
+      setRouteProgressHint('Анализирую погоду')
+    }, TAG_YES_ROUTE_HINT_MS)
+
+    const t2 = window.setTimeout(async () => {
+      setRouteProgressHint(null)
+      setSending(true)
+      try {
+        const ids = await buildRandomCompactPlaceIds()
+        if (!ids.length) throw new Error('Не удалось подобрать точки')
+        const trip = useTripStore.getState()
+        const data = await trip.startRouteWithPlace(ids[0])
+        if (!data?.route?.id) throw new Error('Не удалось создать маршрут')
+        if (ids.length > 1) {
+          await trip.patchRoute(ids.slice(1), [])
+        }
+        const rid = useTripStore.getState().route?.id
+        if (rid) {
+          navigate(
+            { pathname: '/route', search: `?route=${encodeURIComponent(normRouteId(String(rid)))}` },
+            { replace: true },
+          )
+        }
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: nextId(),
+            role: 'assistant',
+            text: `Маршрут из ${ids.length} остановок на карте страницы «Маршрут»: есть точки с питанием, переезды короткие.`,
+            replySource: 'local',
+          },
+        ])
+      } catch (e) {
+        setSendError(formatApiError(e))
+      } finally {
+        setSending(false)
+        tagProposalYesInFlightRef.current = false
+      }
+    }, TAG_YES_ROUTE_HINT_MS + TAG_YES_WEATHER_HINT_MS)
+
+    tagYesTimersRef.current = [t1, t2]
+  }, [navigate])
+
+  const onTagProposalNo = useCallback((msgId) => {
+    if (tagRegenerateTimerRef.current != null) {
+      window.clearTimeout(tagRegenerateTimerRef.current)
+      tagRegenerateTimerRef.current = null
+    }
+    setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, tagChoice: 'no' } : m)))
+    setSending(true)
+    tagRegenerateTimerRef.current = window.setTimeout(() => {
+      tagRegenerateTimerRef.current = null
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: nextId(),
+          role: 'assistant',
+          text: buildTagAnalysisMessage(),
+          replySource: 'local',
+          tagProposal: true,
+        },
+      ])
+      setSending(false)
+    }, TAG_REGENERATE_DELAY_MS)
+  }, [])
 
   return (
     <>
@@ -347,8 +534,11 @@ export function SequentialAiChatCard() {
         titleId={titleId}
         messages={messages}
         sending={sending}
+        routeProgressHint={routeProgressHint}
         sendError={sendError}
         onSend={sendMessage}
+        onTagProposalYes={onTagProposalYes}
+        onTagProposalNo={onTagProposalNo}
         draft={draft}
         setDraft={setDraft}
         listRef={listRef}

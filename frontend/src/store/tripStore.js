@@ -2,7 +2,11 @@ import { create } from 'zustand'
 
 import { buildRoute as buildRouteApi, patchRoute as patchRouteApi } from '../lib/api'
 import { clearRouteQueryParam, replaceRouteQueryParam } from '../lib/routeQuery'
-import { clearSequentialAiTourSession, markSequentialAiTourSession } from '../lib/sequentialAiSession'
+import {
+  clearSequentialAiTourSession,
+  hasSequentialAiTourSession,
+  markSequentialAiTourSession,
+} from '../lib/sequentialAiSession'
 import { ROUTE_PRESETS } from '../data/readyRoutes'
 
 /** PATCH идут строго по одному — иначе два запроса читают одно состояние БД и затирают друг друга. */
@@ -33,8 +37,8 @@ export const useTripStore = create((set, get) => ({
   error: null,
   /** Вход с «Последовательный тур с AI»: первое добавление — только выбранное место, без автосборки */
   sequentialAiMode: false,
-  /** Показать карточку «AI-Чат» на /route после входа с главной (последовательный тур) */
-  sequentialAiChatActive: false,
+  /** Показать карточку «AI-Чат» — после F5 поднимается из sessionStorage (флаг тура) */
+  sequentialAiChatActive: hasSequentialAiTourSession(),
   /**
    * Точка «откуда едем» для линии по дорогам на карте (Яндекс MultiRoute).
    * Пока null — линию не строим (только метки остановок).
@@ -104,7 +108,8 @@ export const useTripStore = create((set, get) => ({
   },
 
   startRouteWithPlace: async (placeId) => {
-    if (startRouteWithPlaceInFlight || get().loading) return undefined
+    // Только inFlight: проверка loading отрезала вызовы из ИИ-чата, если параллельно крутился другой UI
+    if (startRouteWithPlaceInFlight) return undefined
     startRouteWithPlaceInFlight = true
     const manualSequential = get().sequentialAiMode
     set({ loading: true, error: null })

@@ -39,6 +39,22 @@ func parseUUIDs(ss []string) []uuid.UUID {
 	return out
 }
 
+// orderedPlaceIDsFromJSON разбирает JSONB ordered_place_ids: сначала []uuid.UUID, иначе []string (как после json.Marshal([]string)).
+func orderedPlaceIDsFromJSON(raw []byte) []uuid.UUID {
+	if len(raw) == 0 {
+		return nil
+	}
+	var asUUID []uuid.UUID
+	if err := json.Unmarshal(raw, &asUUID); err == nil {
+		return asUUID
+	}
+	var idStrs []string
+	if err := json.Unmarshal(raw, &idStrs); err != nil {
+		return nil
+	}
+	return parseUUIDs(idStrs)
+}
+
 func (s *Server) handlePlacesList(w http.ResponseWriter, r *http.Request) {
 	places, err := store.ListPublishedPlaces(r.Context(), s.Pool)
 	if err != nil {
@@ -394,8 +410,7 @@ func (s *Server) handleRoutePatch(w http.ResponseWriter, r *http.Request) {
 	for _, x := range parseUUIDs(body.RemovePlaceIDs) {
 		remove[x] = struct{}{}
 	}
-	var current []uuid.UUID
-	_ = json.Unmarshal(plan.OrderedPlaceIDs, &current)
+	current := orderedPlaceIDsFromJSON(plan.OrderedPlaceIDs)
 	var merged []uuid.UUID
 	seen := make(map[uuid.UUID]struct{})
 	for _, x := range current {
@@ -506,9 +521,7 @@ func (s *Server) handleRouteGet(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 500, "db error")
 		return
 	}
-	var idStrs []string
-	_ = json.Unmarshal(plan.OrderedPlaceIDs, &idStrs)
-	orderedIDs := parseUUIDs(idStrs)
+	orderedIDs := orderedPlaceIDsFromJSON(plan.OrderedPlaceIDs)
 	if len(orderedIDs) == 0 {
 		writeJSON(w, 200, map[string]any{"route": mapRoutePlan(plan), "places": []map[string]any{}})
 		return

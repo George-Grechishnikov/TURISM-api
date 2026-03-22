@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import { PlaceDetailModal } from '../components/PlaceDetailModal'
 import { PlaceHoverCard } from '../components/PlaceHoverCard'
@@ -15,8 +15,7 @@ import {
   yandexMapsFullRouteUrl,
 } from '../lib/yandexNavLink'
 import { ROUTE_ENTRY_SEQUENTIAL_AI } from '../lib/routeEntry'
-import { clearRouteQueryParam, isRouteIdString } from '../lib/routeQuery'
-import { clearSequentialAiTourSession } from '../lib/sequentialAiSession'
+import { clearRouteQueryParam, isRouteIdString, normRouteId } from '../lib/routeQuery'
 import { useSommelierUiStore } from '../store/sommelierUiStore'
 import { useTripStore } from '../store/tripStore'
 
@@ -99,7 +98,6 @@ function ChevronDownIcon({ open, className = 'h-5 w-5 shrink-0 text-stone-500 tr
 export function RoutePage() {
   const location = useLocation()
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
   const requestSommelierOpen = useSommelierUiStore((s) => s.requestOpen)
   const {
     route,
@@ -180,23 +178,44 @@ export function RoutePage() {
     }
   }, [])
 
+  /** Только строка ?route= — зависимость от объекта searchParams перезапускала эффект на каждом рендере и ловила гонки с PATCH. */
+  const routeIdFromUrl = useMemo(() => {
+    try {
+      return new URLSearchParams(location.search).get('route')?.trim() ?? ''
+    } catch {
+      return ''
+    }
+  }, [location.search])
+
   /** Восстановление маршрута по ?route=uuid (тот же cookie посетителя). */
   useEffect(() => {
-    const rid = searchParams.get('route')?.trim() ?? ''
+    const rid = routeIdFromUrl
     if (!isRouteIdString(rid)) return
-    const cur = useTripStore.getState().route?.id
-    if (cur === rid) return
+    const st = useTripStore.getState()
+    const nRid = normRouteId(rid)
+    const nCur = normRouteId(st.route?.id)
+    const placeCount = st.places?.length ?? 0
+    // Уже загружен этот маршрут с остановками (например после «Да» в ИИ-чате) — не вызывать GET:
+    // иначе при рассинхроне id или пустом ответе список остановок затирался.
+    if (nCur && nCur === nRid && placeCount > 0) return
     let cancelled = false
     ;(async () => {
       try {
         const data = await fetchRoute(rid)
         if (cancelled) return
-        clearSequentialAiTourSession()
+        const incoming = data.places ?? []
+        const now = useTripStore.getState()
+        if (
+          incoming.length === 0 &&
+          (now.places?.length ?? 0) > 0 &&
+          normRouteId(now.route?.id) === nRid
+        ) {
+          return
+        }
         useTripStore.setState({
           route: data.route,
-          places: data.places ?? [],
+          places: incoming,
           sequentialAiMode: false,
-          sequentialAiChatActive: false,
           error: null,
         })
       } catch (e) {
@@ -214,7 +233,7 @@ export function RoutePage() {
     return () => {
       cancelled = true
     }
-  }, [searchParams])
+  }, [routeIdFromUrl])
 
   /** С главной «Последовательный тур с AI»: пустые остановки, все места в «Добавить» */
   useEffect(() => {
