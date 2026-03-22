@@ -1,8 +1,13 @@
 # API на Go (замена Django)
 FROM golang:1.22-alpine AS build
+# При зависании загрузки модулей (WSL/сеть): docker compose build --build-arg GOPROXY=https://goproxy.io,direct backend
+ARG GOPROXY=https://proxy.golang.org,direct
+ENV GOPROXY=${GOPROXY}
 WORKDIR /src
+COPY server/go.mod server/go.sum ./
+RUN go mod download
 COPY server/ ./
-RUN go mod tidy && CGO_ENABLED=0 go build -ldflags="-s -w" -o /turizm ./cmd/turizm/
+RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /turizm ./cmd/turizm/
 
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates netcat-openbsd
