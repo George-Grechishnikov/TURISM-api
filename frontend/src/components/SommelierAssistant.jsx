@@ -171,7 +171,10 @@ export function SommelierAssistant() {
     setAddError(null)
     setAddingId(String(placeId))
     try {
-      await addStop(placeId)
+      const res = await addStop(placeId)
+      if (res === null) {
+        setAddError('Маршрут устарел — нажмите «Добавить» ещё раз.')
+      }
     } catch (e) {
       setAddError(e?.response?.data?.detail || e?.message || 'Не удалось добавить в маршрут')
     } finally {

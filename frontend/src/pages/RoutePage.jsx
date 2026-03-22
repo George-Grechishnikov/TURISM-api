@@ -288,11 +288,8 @@ export function RoutePage() {
 
             {(optionalPlaces.length > 0 || showSequentialEmptyStops) && (
               <section className="route-levitate shrink-0 pb-3 pt-2 text-left">
-                <div className="flex flex-wrap items-end justify-between gap-1 px-3">
+                <div className="px-3">
                   <h2 className="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-500">Добавить</h2>
-                  {optionalPlaces.length >= ADD_CHIPS_SCROLL_MIN && (
-                    <span className="text-[9px] font-medium text-stone-400">Колёсико мыши — прокрутка</span>
-                  )}
                 </div>
                 {optionalPlaces.length >= ADD_CHIPS_SCROLL_MIN ? (
                   <div
@@ -486,15 +483,10 @@ export function RoutePage() {
         {/* Остановки заполняют высоту до блока «Добавить»; прокрутка колёсиком только внутри списка */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
           <section className="flex min-h-0 flex-1 flex-col gap-2 text-left">
-            <div className="flex shrink-0 flex-wrap items-end justify-between gap-1 pl-0.5 pr-0.5">
+            <div className="flex shrink-0 pl-0.5 pr-0.5">
               <h2 className="text-[11px] font-bold uppercase tracking-[0.14em] text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.55)]">
                 Остановки
               </h2>
-              {places.length > 2 && (
-                <span className="text-[9px] font-medium text-white/90 [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
-                  Колёсико мыши — прокрутка
-                </span>
-              )}
             </div>
             <div
               ref={stopsScrollRef}
@@ -612,11 +604,8 @@ export function RoutePage() {
 
           {optionalPlaces.length > 0 && (
             <section className="route-levitate shrink-0 pb-3 pt-2 text-left">
-              <div className="flex flex-wrap items-end justify-between gap-1 px-3">
+              <div className="px-3">
                 <h2 className="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-500">Добавить</h2>
-                {optionalPlaces.length >= ADD_CHIPS_SCROLL_MIN && (
-                  <span className="text-[9px] font-medium text-stone-400">Колёсико мыши — прокрутка</span>
-                )}
               </div>
               {optionalPlaces.length >= ADD_CHIPS_SCROLL_MIN ? (
                 <div

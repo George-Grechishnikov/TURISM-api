@@ -44,6 +44,15 @@ func SyncKrasnodarBundled(ctx context.Context, pool *pgxpool.Pool) error {
 	if _, err := pool.Exec(ctx, `UPDATE places_place SET published = false WHERE slug = ANY($1::text[])`, demoSlugsToRetire); err != nil {
 		return fmt.Errorf("retire demo slugs: %w", err)
 	}
+	// Любые оставшиеся compact-* и старые названия «(демо)» из прошлых сидов
+	if _, err := pool.Exec(ctx, `
+		UPDATE places_place SET published = false
+		WHERE slug LIKE 'compact-%'
+		   OR slug LIKE 'demo-%'
+		   OR (name LIKE '%(демо)%' AND slug NOT LIKE 'svc-%')
+	`); err != nil {
+		return fmt.Errorf("retire demo by pattern: %w", err)
+	}
 	for _, row := range doc.Places {
 		if row.Slug == "" || row.Name == "" {
 			continue

@@ -39,10 +39,7 @@ func main() {
 		log.Fatalf("count: %v", err)
 	}
 	if n == 0 {
-		log.Println("No published wineries after sync — fallback compact demo")
-		if err := seed.Run(ctx, pool); err != nil {
-			log.Fatalf("seed: %v", err)
-		}
+		log.Fatal("no published wineries after krasnodar sync; check krasnodar_wineries.json and sync logs")
 	}
 	srv := &api.Server{Pool: pool, Cfg: cfg}
 	h := api.NewRouter(srv)

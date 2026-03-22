@@ -46,22 +46,153 @@ function dedupeRouteCoords(coords) {
   return out
 }
 
-/** Простая полилиния по точкам — запасной вариант, если multiRouter недоступен или маршрут не построился. */
-function createRoutePolyline(ymaps, places, routeColor) {
-  const coords = dedupeRouteCoords(places.map((p) => [Number(p.latitude), Number(p.longitude)]))
-  if (coords.length < 2) return null
-  return new ymaps.Polyline(
-    coords,
-    {},
-    {
-      strokeColor: routeColor || '#7c2944',
-      strokeWidth: 3,
-      strokeOpacity: 0.9,
-    },
-  )
+/** Параметры маршрутизатора: только автомобиль по дорогам ОД (не пешеход / не «птичка»). */
+function drivingRouteParams() {
+  return {
+    routingMode: 'auto',
+    results: 1,
+    reverseGeocoding: true,
+    searchCoordOrder: 'latlong',
+  }
 }
 
-/** Маршрут по дорогам (Яндекс multiRouter); при ошибке — полилиния по прямой. */
+function multiRouteViewOptions(stroke) {
+  return {
+    routeActiveStrokeWidth: 4,
+    routeActiveStrokeColor: stroke,
+    routeStrokeWidth: 3,
+    routeStrokeColor: stroke,
+    wayPointVisible: false,
+    viaPointVisible: false,
+  }
+}
+
+/** Координаты линии активного маршрута (уже по сети дорог). */
+function extractMultiRoutePathCoords(multiRoute) {
+  try {
+    const routes = multiRoute.model.getRoutes()
+    if (!routes || routes.getLength() === 0) return null
+    const r = routes.get(0)
+    const paths = r.getPaths()
+    const out = []
+    for (let pi = 0; pi < paths.getLength(); pi++) {
+      const path = paths.get(pi)
+      const segments = path.getSegments()
+      for (let si = 0; si < segments.getLength(); si++) {
+        const seg = segments.get(si)
+        const chunk = seg.getCoordinates()
+        if (chunk?.length) out.push(...chunk)
+      }
+    }
+    return out.length ? dedupeRouteCoords(out) : null
+  } catch {
+    return null
+  }
+}
+
+function waitMultiRouteResolved(multiRoute, timeoutMs = 28000) {
+  return new Promise((resolve) => {
+    let settled = false
+    const finish = (payload) => {
+      if (settled) return
+      settled = true
+      window.clearTimeout(tid)
+      resolve(payload)
+    }
+    const tid = window.setTimeout(() => finish({ ok: false, reason: 'timeout' }), timeoutMs)
+    multiRoute.model.events.add('requestsuccess', () => {
+      try {
+        const routes = multiRoute.model.getRoutes()
+        const ok = Boolean(routes && routes.getLength() > 0)
+        finish({ ok, reason: ok ? 'ok' : 'empty' })
+      } catch {
+        finish({ ok: false, reason: 'error' })
+      }
+    })
+    multiRoute.model.events.add('requestfail', () => finish({ ok: false, reason: 'fail' }))
+  })
+}
+
+/**
+ * Линия только по дорогам: один MultiRoute через все точки, иначе цепочка пар (каждая пара — авто).
+ * Прямых «птичьих» линий между остановками нет.
+ */
+async function buildRoadOnlyRoute(ymaps, map, refPoints, stroke, cancelled) {
+  if (refPoints.length < 2) return null
+  await requireMultiRouter(ymaps)
+  if (cancelled()) return null
+
+  const params = drivingRouteParams()
+  const visibleOpts = multiRouteViewOptions(stroke)
+  const hiddenOpts = {
+    ...visibleOpts,
+    routeActiveStrokeOpacity: 0,
+    routeStrokeOpacity: 0,
+  }
+
+  const fullMr = new ymaps.multiRouter.MultiRoute({ referencePoints: refPoints, params }, visibleOpts)
+  map.geoObjects.add(fullMr)
+  const fullRes = await waitMultiRouteResolved(fullMr)
+  if (cancelled()) {
+    try {
+      map.geoObjects.remove(fullMr)
+    } catch {
+      /* ignore */
+    }
+    return null
+  }
+  if (fullRes.ok) {
+    return { type: 'multi', geoObject: fullMr }
+  }
+  try {
+    map.geoObjects.remove(fullMr)
+  } catch {
+    /* ignore */
+  }
+
+  const merged = []
+  for (let i = 0; i < refPoints.length - 1; i++) {
+    if (cancelled()) return null
+    const segMr = new ymaps.multiRouter.MultiRoute(
+      { referencePoints: [refPoints[i], refPoints[i + 1]], params },
+      hiddenOpts,
+    )
+    map.geoObjects.add(segMr)
+    const segRes = await waitMultiRouteResolved(segMr)
+    if (cancelled()) {
+      try {
+        map.geoObjects.remove(segMr)
+      } catch {
+        /* ignore */
+      }
+      return null
+    }
+    const pathCoords = segRes.ok ? extractMultiRoutePathCoords(segMr) : null
+    try {
+      map.geoObjects.remove(segMr)
+    } catch {
+      /* ignore */
+    }
+    if (!segRes.ok || !pathCoords?.length) {
+      return null
+    }
+    if (merged.length) {
+      const last = merged[merged.length - 1]
+      const first = pathCoords[0]
+      if (last[0] === first[0] && last[1] === first[1]) pathCoords.shift()
+    }
+    merged.push(...pathCoords)
+  }
+  if (merged.length < 2) return null
+  const polyline = new ymaps.Polyline(merged, {}, {
+    strokeColor: stroke,
+    strokeWidth: 3,
+    strokeOpacity: 0.9,
+  })
+  return { type: 'polyline', geoObject: polyline }
+}
+
+/** Маршрут по дорогам (Яндекс multiRouter); прямой запасной линии нет. */
 function requireMultiRouter(ymaps) {
   return new Promise((resolve, reject) => {
     try {
@@ -134,6 +265,7 @@ export function RouteMap({ places, routeColor, onMarkerClick, onMarkerHoverPrevi
 
   const [error, setError] = useState(null)
   const [mapReady, setMapReady] = useState(false)
+  const [roadRouteHint, setRoadRouteHint] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -207,51 +339,32 @@ export function RouteMap({ places, routeColor, onMarkerClick, onMarkerHoverPrevi
       try {
         const CircleLayout = ensureCirclePhotoLayout(ymaps)
         map.geoObjects.removeAll()
+        setRoadRouteHint(null)
 
         const stroke = routeColor || '#7c2944'
-        let multiRoute = null
+        let routeGeo = null
         if (places.length >= 2) {
+          const refPoints = dedupeRouteCoords(
+            places.map((p) => [Number(p.latitude), Number(p.longitude)]),
+          )
           try {
-            await requireMultiRouter(ymaps)
+            const built = await buildRoadOnlyRoute(ymaps, map, refPoints, stroke, () => cancelled)
             if (cancelled) return
-            const refPoints = dedupeRouteCoords(
-              places.map((p) => [Number(p.latitude), Number(p.longitude)]),
-            )
-            multiRoute = new ymaps.multiRouter.MultiRoute(
-              {
-                referencePoints: refPoints,
-                params: { routingMode: 'auto', results: 1 },
-              },
-              {
-                routeActiveStrokeWidth: 4,
-                routeActiveStrokeColor: stroke,
-                routeStrokeWidth: 3,
-                routeStrokeColor: stroke,
-                wayPointVisible: false,
-                viaPointVisible: false,
-              },
-            )
-            multiRoute.model.events.add('requestsuccess', () => {
-              if (cancelled) return
-              fitPlacesBounds(map, places)
-              requestAnimationFrame(() => fitMapViewport(map))
-            })
-            multiRoute.model.events.add('requestfail', () => {
-              if (cancelled) return
-              try {
-                map.geoObjects.remove(multiRoute)
-              } catch {
-                /* ignore */
-              }
-              const line = createRoutePolyline(ymaps, places, routeColor)
-              if (line) map.geoObjects.add(line)
-              fitPlacesBounds(map, places)
-              requestAnimationFrame(() => fitMapViewport(map))
-            })
-            map.geoObjects.add(multiRoute)
+            routeGeo = built
+            if (!built) {
+              setRoadRouteHint('Не удалось построить путь по дорогам (проверьте ключ API или сеть).')
+            } else if (built.type === 'multi') {
+              built.geoObject.model.events.add('requestsuccess', () => {
+                if (cancelled) return
+                fitPlacesBounds(map, places)
+                requestAnimationFrame(() => fitMapViewport(map))
+              })
+            }
+            if (built?.type === 'polyline' && built.geoObject) {
+              map.geoObjects.add(built.geoObject)
+            }
           } catch {
-            const routeLine = createRoutePolyline(ymaps, places, routeColor)
-            if (routeLine) map.geoObjects.add(routeLine)
+            if (!cancelled) setRoadRouteHint('Маршрутизация по дорогам недоступна.')
           }
         }
 
@@ -307,7 +420,10 @@ export function RouteMap({ places, routeColor, onMarkerClick, onMarkerHoverPrevi
           map.geoObjects.add(placemark)
         })
 
-        if (!multiRoute) {
+        if (!routeGeo) {
+          fitPlacesBounds(map, places)
+          requestAnimationFrame(() => fitMapViewport(map))
+        } else if (routeGeo.type === 'polyline') {
           fitPlacesBounds(map, places)
           requestAnimationFrame(() => fitMapViewport(map))
         } else {
@@ -350,6 +466,11 @@ export function RouteMap({ places, routeColor, onMarkerClick, onMarkerHoverPrevi
               </p>
             )}
           </div>
+        </div>
+      )}
+      {roadRouteHint && (
+        <div className="pointer-events-none absolute bottom-3 left-1/2 z-[5] max-w-[min(92vw,22rem)] -translate-x-1/2 rounded-xl border border-amber-200/90 bg-amber-50/95 px-3 py-2 text-center text-[11px] font-medium text-amber-950 shadow-sm">
+          {roadRouteHint}
         </div>
       )}
       <div
