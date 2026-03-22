@@ -4,21 +4,6 @@ import { buildRoute as buildRouteApi, patchRoute as patchRouteApi } from '../lib
 import { clearRouteQueryParam, replaceRouteQueryParam } from '../lib/routeQuery'
 import { clearSequentialAiTourSession, markSequentialAiTourSession } from '../lib/sequentialAiSession'
 import { ROUTE_PRESETS } from '../data/readyRoutes'
-import { resolveTripGeoIfAsked } from '../lib/tripGeo'
-
-function isoDateLocal(d = new Date()) {
-  const x = new Date(d)
-  const y = x.getFullYear()
-  const m = String(x.getMonth() + 1).padStart(2, '0')
-  const day = String(x.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-
-function defaultTripEndDate() {
-  const x = new Date()
-  x.setDate(x.getDate() + 2)
-  return isoDateLocal(x)
-}
 
 /** PATCH идут строго по одному — иначе два запроса читают одно состояние БД и затирают друг друга. */
 let patchQueue = Promise.resolve()
@@ -39,9 +24,6 @@ export const useTripStore = create((set, get) => ({
   extraTags: [],
   budgetMin: 5000,
   budgetMax: 1000000,
-  tripStartDate: isoDateLocal(),
-  tripEndDate: defaultTripEndDate(),
-  useTripGeo: false,
 
   route: null,
   places: [],
@@ -70,8 +52,6 @@ export const useTripStore = create((set, get) => ({
 
   setTags: (field, tags) => set({ [field]: tags }),
   setBudget: (min, max) => set({ budgetMin: min, budgetMax: max }),
-  setTripDates: (start, end) => set({ tripStartDate: start, tripEndDate: end }),
-  setUseTripGeo: (v) => set({ useTripGeo: Boolean(v) }),
 
   clearSequentialAiChat: () => {
     clearSequentialAiTourSession()
@@ -98,18 +78,7 @@ export const useTripStore = create((set, get) => ({
     get().clearSequentialAiChat()
     set({ loading: true, error: null, sequentialAiMode: false })
     try {
-      const {
-        companionsTags,
-        moodTags,
-        durationTags,
-        extraTags,
-        budgetMin,
-        budgetMax,
-        tripStartDate,
-        tripEndDate,
-        useTripGeo,
-      } = get()
-      const geo = await resolveTripGeoIfAsked(useTripGeo)
+      const { companionsTags, moodTags, durationTags, extraTags, budgetMin, budgetMax } = get()
       const data = await buildRouteApi({
         companions_tags: companionsTags,
         mood_tags: moodTags,
@@ -117,10 +86,7 @@ export const useTripStore = create((set, get) => ({
         extra_tags: extraTags,
         budget_min: budgetMin,
         budget_max: budgetMax,
-        start_date: tripStartDate,
-        end_date: tripEndDate,
         max_stops: 6,
-        ...geo,
       })
       set({
         route: data.route,
@@ -144,7 +110,6 @@ export const useTripStore = create((set, get) => ({
     set({ loading: true, error: null })
     try {
       const st = get()
-      const geo = await resolveTripGeoIfAsked(st.useTripGeo)
       const data = await buildRouteApi({
         companions_tags: [],
         mood_tags: [],
@@ -153,11 +118,8 @@ export const useTripStore = create((set, get) => ({
         include_place_ids: [placeId],
         budget_min: st.budgetMin,
         budget_max: st.budgetMax,
-        start_date: st.tripStartDate,
-        end_date: st.tripEndDate,
         max_stops: 6,
         manual_sequential: manualSequential,
-        ...geo,
       })
       set({
         route: data.route,

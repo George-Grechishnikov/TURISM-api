@@ -33,6 +33,7 @@ type krasnodarFile struct {
 		Short               string   `json:"short"`
 		Tags                []string `json:"tags"`
 		TypicalVisitCostRub *int     `json:"typical_visit_cost_rub,omitempty"`
+		PhotoURLs           []string `json:"photo_urls"`
 	} `json:"places"`
 }
 
@@ -62,7 +63,10 @@ func SyncKrasnodarBundled(ctx context.Context, pool *pgxpool.Pool) error {
 		if err != nil || len(tags) == 0 || string(tags) == "null" {
 			tags = []byte("[]")
 		}
-		photos, _ := json.Marshal([]string{})
+		photos, _ := json.Marshal(row.PhotoURLs)
+		if len(row.PhotoURLs) == 0 {
+			photos = []byte("[]")
+		}
 		isWinery := row.Cat == "winery" || row.Cat == ""
 		cat := row.Cat
 		if cat == "" {
@@ -90,7 +94,10 @@ func SyncKrasnodarBundled(ctx context.Context, pool *pgxpool.Pool) error {
 				short_description = EXCLUDED.short_description,
 				full_description = EXCLUDED.full_description,
 				tags = EXCLUDED.tags,
-				photo_urls = EXCLUDED.photo_urls,
+				photo_urls = CASE
+					WHEN jsonb_array_length(EXCLUDED.photo_urls) > 0 THEN EXCLUDED.photo_urls
+					ELSE places_place.photo_urls
+				END,
 				typical_visit_cost_rub = EXCLUDED.typical_visit_cost_rub,
 				published = true,
 				updated_at = NOW()`,

@@ -24,9 +24,9 @@ const BUDGET_SLIDER_MAX = 1_000_000
 const BUDGET_SLIDER_STEP = 5000
 const BUDGET_TRACK_LEFT = 152
 const BUDGET_TRACK_WIDTH = 712
-const BUDGET_TRACK_TOP = 1461
-const BUDGET_SLIDER_CENTER_Y = 1476
-const BUDGET_TOOLTIP_TOP = 1354
+const BUDGET_TRACK_TOP = 1326
+const BUDGET_SLIDER_CENTER_Y = 1341
+const BUDGET_TOOLTIP_TOP = 1219
 
 export function QuizPage() {
   const navigate = useNavigate()
@@ -42,14 +42,9 @@ export function QuizPage() {
     extraTags,
     budgetMin,
     budgetMax,
-    tripStartDate,
-    tripEndDate,
-    useTripGeo,
     toggleTag,
     setTags,
     setBudget,
-    setTripDates,
-    setUseTripGeo,
     buildRoute,
     loading,
     error,
@@ -60,7 +55,6 @@ export function QuizPage() {
 
   const canSubmit = companionsTags.length && moodTags.length && durationTags.length
   const budgetReady = budgetMin <= budgetMax
-  const datesReady = tripStartDate <= tripEndDate
 
   const budgetSpan = BUDGET_SLIDER_MAX - BUDGET_SLIDER_MIN
   const minRatio = (budgetMin - BUDGET_SLIDER_MIN) / budgetSpan
@@ -82,7 +76,7 @@ export function QuizPage() {
 
   async function onSubmit(e) {
     e.preventDefault()
-    if (!canSubmit || !budgetReady || !datesReady) return
+    if (!canSubmit || !budgetReady) return
     try {
       await buildRoute()
       navigate('/route')
@@ -102,7 +96,7 @@ export function QuizPage() {
   return (
     <div className="min-h-screen overflow-x-hidden bg-white font-['Montserrat']">
       <SiteHeader variant="bar" />
-      <main className="relative mx-auto min-h-[1720px] w-[1920px] rounded-[77px] bg-white p-2 pb-24">
+      <main className="relative mx-auto min-h-[1585px] w-[1920px] rounded-[77px] bg-white p-2 pb-24">
         <h1 className="absolute left-[115px] top-[40px] w-[1166px] text-[110px] font-bold leading-[89%] tracking-[0.03em] text-black">
           Собери тур
           <br />
@@ -188,49 +182,6 @@ export function QuizPage() {
             </div>
           </section>
 
-          <section className="absolute left-[115px] top-[1240px] z-10 w-[1690px] rounded-[48px] border border-stone-200/80 bg-white/90 px-10 py-6 shadow-sm">
-            <h2 className="text-[32px] font-semibold leading-tight tracking-[0.03em] text-black">
-              Даты поездки и геолокация
-            </h2>
-            <p className="mt-2 max-w-[720px] text-[18px] font-medium text-stone-600">
-              Погода и старт маршрута от точки «выезд» точнее, если указать период и при желании разрешить доступ к
-              местоположению.
-            </p>
-            <div className="mt-5 flex flex-wrap items-end gap-8">
-              <label className="flex flex-col gap-1 text-[14px] font-semibold text-stone-800">
-                Начало
-                <input
-                  type="date"
-                  value={tripStartDate}
-                  onChange={(e) => setTripDates(e.target.value, tripEndDate)}
-                  className="rounded-xl border border-stone-300 bg-white px-3 py-2 text-[16px] font-medium text-black shadow-sm"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-[14px] font-semibold text-stone-800">
-                Конец
-                <input
-                  type="date"
-                  value={tripEndDate}
-                  min={tripStartDate}
-                  onChange={(e) => setTripDates(tripStartDate, e.target.value)}
-                  className="rounded-xl border border-stone-300 bg-white px-3 py-2 text-[16px] font-medium text-black shadow-sm"
-                />
-              </label>
-              <label className="flex cursor-pointer items-center gap-3 text-[16px] font-semibold text-stone-800">
-                <input
-                  type="checkbox"
-                  checked={useTripGeo}
-                  onChange={(e) => setUseTripGeo(e.target.checked)}
-                  className="h-5 w-5 rounded border-stone-400 text-wine-800 focus:ring-wine-600"
-                />
-                Учесть геолокацию для погоды и старта маршрута
-              </label>
-            </div>
-            {!datesReady && (
-              <p className="mt-3 text-[15px] font-semibold text-red-700">Дата начала не может быть позже даты окончания.</p>
-            )}
-          </section>
-
           <div
             className="pointer-events-none absolute z-20 flex h-[64px] min-w-[200px] max-w-[280px] items-center justify-center rounded-[27px] bg-[#B12030] px-4 text-center text-[20px] font-bold leading-[100.79%] tracking-[0.03em] text-white"
             style={{
@@ -306,31 +257,31 @@ export function QuizPage() {
             }}
             aria-label="Максимальный бюджет"
           />
-          <p className="absolute left-[166px] top-[1525px] text-[20px] font-bold leading-[100.79%] tracking-[0.03em] text-black">min</p>
-          <p className="absolute left-[807px] top-[1525px] text-[20px] font-bold leading-[100.79%] tracking-[0.03em] text-black">max</p>
+          <p className="absolute left-[166px] top-[1390px] text-[20px] font-bold leading-[100.79%] tracking-[0.03em] text-black">min</p>
+          <p className="absolute left-[807px] top-[1390px] text-[20px] font-bold leading-[100.79%] tracking-[0.03em] text-black">max</p>
 
           <button
             type="submit"
-            disabled={!canSubmit || !budgetReady || !datesReady || loading}
-            className="absolute left-[1153px] top-[1431px] h-[106px] w-[671px] rounded-[53px] bg-[linear-gradient(180deg,#1f2328_0%,#07090c_100%)] text-[50px] font-semibold uppercase leading-[100.79%] tracking-[0.03em] text-white shadow-[0_18px_40px_rgba(0,0,0,0.32)] transition hover:brightness-110 disabled:pointer-events-none disabled:opacity-40"
+            disabled={!canSubmit || !budgetReady || loading}
+            className="absolute left-[1153px] top-[1296px] h-[106px] w-[671px] rounded-[53px] bg-[linear-gradient(180deg,#1f2328_0%,#07090c_100%)] text-[50px] font-semibold uppercase leading-[100.79%] tracking-[0.03em] text-white shadow-[0_18px_40px_rgba(0,0,0,0.32)] transition hover:brightness-110 disabled:pointer-events-none disabled:opacity-40"
           >
             {loading ? 'Строим...' : 'Поехали'}
           </button>
 
           {error && (
-            <p className="absolute left-[132px] top-[1575px] rounded-2xl border border-red-300 bg-red-50 px-5 py-3 text-[18px] text-red-800" role="alert">
+            <p className="absolute left-[132px] top-[1440px] rounded-2xl border border-red-300 bg-red-50 px-5 py-3 text-[18px] text-red-800" role="alert">
               {error}
             </p>
           )}
 
           {!budgetReady && (
-            <p className="absolute left-[132px] top-[1575px] text-[18px] font-semibold text-red-700">
+            <p className="absolute left-[132px] top-[1440px] text-[18px] font-semibold text-red-700">
               Минимальный бюджет не может быть больше максимального.
             </p>
           )}
         </form>
 
-        <Link to="/" className="absolute left-[132px] top-[1615px] text-base font-medium text-stone-500 transition hover:text-black">
+        <Link to="/" className="absolute left-[132px] top-[1480px] text-base font-medium text-stone-500 transition hover:text-black">
           ← На главную
         </Link>
       </main>
