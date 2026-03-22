@@ -3,6 +3,7 @@ import { Swiper, SwiperSlide } from 'swiper/react'
 import { Navigation, Pagination } from 'swiper/modules'
 
 import { fetchPlace } from '../lib/api'
+import { PlacePhotoImg } from './PlacePhotoImg'
 
 import 'swiper/css'
 import 'swiper/css/navigation'
@@ -102,10 +103,10 @@ export function PlaceDetailModal({
               >
                 {data.photo_urls.map((url) => (
                   <SwiperSlide key={url}>
-                    <img
-                      src={url}
-                      alt=""
+                    <PlacePhotoImg
+                      src={typeof url === 'string' ? url.trim() : ''}
                       className="h-[min(42vh,380px)] w-full bg-stone-100 object-cover"
+                      placeholderClassName="flex h-[min(42vh,380px)] w-full items-center justify-center bg-stone-200 text-5xl text-wine-700/35"
                     />
                   </SwiperSlide>
                 ))}

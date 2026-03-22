@@ -1,3 +1,6 @@
+import { primaryPhotoUrl } from '../lib/placePhoto'
+import { PlacePhotoImg } from './PlacePhotoImg'
+
 const CATEGORY_LABEL = {
   winery: 'Винодельня',
   lodging: 'Жильё',
@@ -8,7 +11,7 @@ const CATEGORY_LABEL = {
 /** Компактная подсказка на карте при наведении на маркер (не полноэкранная). */
 export function PlaceHoverCard({ place }) {
   if (!place) return null
-  const photo = place.photo_urls?.[0]
+  const photo = primaryPhotoUrl(place)
 
   return (
     <div
@@ -18,11 +21,11 @@ export function PlaceHoverCard({ place }) {
       <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-wine-600 via-amber-600 to-wine-700" aria-hidden />
       <div className="flex gap-3 pl-4 pr-3 py-3">
         <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-stone-200/80 bg-stone-100 shadow-inner">
-          {photo ? (
-            <img src={photo} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-lg text-wine-700/50">◆</div>
-          )}
+          <PlacePhotoImg
+            src={photo}
+            className="h-full w-full object-cover"
+            placeholderClassName="flex h-full w-full items-center justify-center text-lg text-wine-700/50"
+          />
         </div>
         <div className="min-w-0 flex-1 text-left">
           <p className="font-display text-sm font-semibold leading-tight text-wine-950">{place.name}</p>

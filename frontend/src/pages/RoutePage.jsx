@@ -3,9 +3,11 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import { PlaceDetailModal } from '../components/PlaceDetailModal'
 import { PlaceHoverCard } from '../components/PlaceHoverCard'
+import { PlacePhotoImg } from '../components/PlacePhotoImg'
 import { RouteMap } from '../components/RouteMap'
 import { SequentialAiChatCard } from '../components/SequentialAiChatCard'
 import { fetchPlaces } from '../lib/api'
+import { primaryPhotoUrl } from '../lib/placePhoto'
 import { ROUTE_ENTRY_SEQUENTIAL_AI } from '../lib/routeEntry'
 import { hasSequentialAiTourSession } from '../lib/sequentialAiSession'
 import { useSommelierUiStore } from '../store/sommelierUiStore'
@@ -502,7 +504,7 @@ export function RoutePage() {
             <ul className="flex flex-col gap-3 pb-1">
               {places.map((p, i) => {
                 const expanded = expandedStopId === p.id
-                const photo = p.photo_urls?.[0]
+                const photo = primaryPhotoUrl(p)
 
                 return (
                   <li
@@ -531,13 +533,11 @@ export function RoutePage() {
                           className="relative block h-40 w-full overflow-hidden border-b-4 border-[#B12030] bg-stone-200"
                           title="Подробнее о месте"
                         >
-                          {photo ? (
-                            <img src={photo} alt="" className="h-full w-full object-cover" />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-wine-100 to-stone-200 text-4xl text-wine-700/50">
-                              ◆
-                            </div>
-                          )}
+                          <PlacePhotoImg
+                            src={photo}
+                            className="h-full w-full object-cover"
+                            placeholderClassName="flex h-full w-full items-center justify-center bg-gradient-to-br from-wine-100 to-stone-200 text-4xl text-wine-700/50"
+                          />
                         </button>
                         <div className="space-y-2 p-3" onClick={(e) => e.stopPropagation()}>
                           <p className="font-['Montserrat'] text-sm font-bold leading-snug text-black">
@@ -578,13 +578,11 @@ export function RoutePage() {
                           className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border-[3px] border-[#B12030] shadow-md ring-2 ring-white"
                           title={p.name}
                         >
-                          {photo ? (
-                            <img src={photo} alt="" className="h-full w-full object-cover" />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-wine-100 to-stone-200 text-lg text-wine-700/60">
-                              ◆
-                            </div>
-                          )}
+                          <PlacePhotoImg
+                            src={photo}
+                            className="h-full w-full object-cover"
+                            placeholderClassName="flex h-full w-full items-center justify-center bg-gradient-to-br from-wine-100 to-stone-200 text-lg text-wine-700/60"
+                          />
                         </button>
                         <div className="min-w-0 flex-1 text-left">
                           <p className="font-['Montserrat'] text-sm font-bold leading-snug text-black">

@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
+import { primaryPhotoUrl } from '../lib/placePhoto'
 import { bumpSommelierRootToBodyEnd } from '../lib/sommelierDom'
 import { loadYandexMapsApi } from '../lib/yandexMaps'
 
@@ -17,7 +18,7 @@ const PLACEHOLDER_SVG = encodeURIComponent(
 )
 
 function photoUrlForPlace(p) {
-  const u = p.photo_urls?.[0]
+  const u = primaryPhotoUrl(p)
   if (u) return u
   return `data:image/svg+xml;charset=utf-8,${PLACEHOLDER_SVG}`
 }
