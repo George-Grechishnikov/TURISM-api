@@ -331,8 +331,3 @@ export function SequentialAiChatCard() {
     </>
   )
 }
-</think>
-Исправляю логику отправки: удаляю дубликат и ошибку в `history`.
-
-<｜tool▁calls▁begin｜><｜tool▁call▁begin｜>
-Read
