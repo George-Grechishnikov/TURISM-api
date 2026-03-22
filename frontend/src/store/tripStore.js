@@ -125,6 +125,16 @@ export const useTripStore = create((set, get) => ({
         })
         return data
       } catch (e) {
+        if (e.response?.status === 404) {
+          set({
+            route: null,
+            places: [],
+            error:
+              'Маршрут не найден (другая сессия или БД сброшена). Откройте главную и соберите маршрут снова.',
+            patching: false,
+          })
+          throw e
+        }
         const msg = e.response?.data?.detail || e.message
         set({ error: String(msg), patching: false })
         throw e
