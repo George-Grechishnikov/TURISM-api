@@ -297,9 +297,7 @@ export function RouteMap({
     hoverEndRef.current = onMarkerHoverEnd
   })
 
-  const [error, setError] = useState(null)
   const [mapReady, setMapReady] = useState(false)
-  const [roadRouteHint, setRoadRouteHint] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -324,7 +322,6 @@ export function RouteMap({
         map.controls.add('geolocationControl', { position: { right: 16, top: 152 } })
         mapInstanceRef.current = map
         setMapReady(true)
-        setError(null)
         bumpSommelierRootToBodyEnd()
         requestAnimationFrame(() => {
           bumpSommelierRootToBodyEnd()
@@ -346,7 +343,10 @@ export function RouteMap({
           loadYandexMapsApi()
             .then(mountMap)
             .catch((e) => {
-              if (!cancelled) setError(e?.message || 'Карта не загрузилась')
+              if (!cancelled) {
+                const msg = e?.message || 'Карта не загрузилась'
+                console.error('[RouteMap] Yandex Maps API не загрузилась:', msg, e)
+              }
             })
         }, 900)
       })
@@ -373,7 +373,6 @@ export function RouteMap({
       try {
         const CircleLayout = ensureCirclePhotoLayout(ymaps)
         map.geoObjects.removeAll()
-        setRoadRouteHint(null)
 
         const stroke = routeColor || '#7c2944'
         let routeGeo = null
@@ -384,16 +383,19 @@ export function RouteMap({
             if (cancelled) return
             routeGeo = built
             if (!built) {
-              setRoadRouteHint(
-                [
-                  'Не удалось построить маршрут по дорогам.',
-                  '',
-                  'Чаще всего:',
-                  '1) Ключ не попал в сборку: в .env задайте VITE_YANDEX_MAPS_API_KEY и пересоберите web (docker compose build web --no-cache).',
-                  '2) В кабинете developer.tech.yandex.ru для ключа добавьте HTTP Referrer: http://localhost:8080 и http://127.0.0.1:8080 (или ваш домен).',
-                  '3) У ключа должен быть подключён сервис «JavaScript API и HTTP Геокодер».',
-                ].join('\n'),
-              )
+              const detail = [
+                'Не удалось построить маршрут по дорогам.',
+                '',
+                'Чаще всего:',
+                '1) Ключ не попал в сборку: в .env задайте VITE_YANDEX_MAPS_API_KEY и пересоберите web (docker compose build web --no-cache).',
+                '2) В кабинете developer.tech.yandex.ru для ключа добавьте HTTP Referrer для текущего origin (например http://100.78.89.35:8080/*) и localhost.',
+                '3) У ключа должен быть подключён сервис «JavaScript API и HTTP Геокодер».',
+              ].join('\n')
+              const keySet = Boolean(String(import.meta.env.VITE_YANDEX_MAPS_API_KEY || '').trim())
+              console.warn('[RouteMap]', detail, {
+                origin: typeof window !== 'undefined' ? window.location?.origin : null,
+                viteKeyPresent: keySet,
+              })
             } else if (built.type === 'multi') {
               built.geoObject.model.events.add('requestsuccess', () => {
                 if (cancelled) return
@@ -404,8 +406,8 @@ export function RouteMap({
             if (built?.type === 'polyline' && built.geoObject) {
               map.geoObjects.add(built.geoObject)
             }
-          } catch {
-            if (!cancelled) setRoadRouteHint('Маршрутизация по дорогам недоступна.')
+          } catch (e) {
+            if (!cancelled) console.warn('[RouteMap] Маршрутизация по дорогам недоступна.', e)
           }
         }
 
@@ -521,34 +523,9 @@ export function RouteMap({
 
   return (
     <div className={`relative z-0 min-h-0 ${className}`.trim()}>
-      {error && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#faf7f2]/95 px-4 text-center backdrop-blur-sm">
-          <div className="max-w-sm rounded-2xl border border-stone-200/80 bg-white/90 p-6 shadow-card text-sm text-stone-600">
-            <p className="font-medium text-wine-900">{error}</p>
-            {!import.meta.env.VITE_YANDEX_MAPS_API_KEY && (
-              <p className="mt-3 text-xs leading-relaxed text-stone-500">
-                Добавьте <code className="rounded bg-stone-100 px-1 py-0.5 text-[11px]">VITE_YANDEX_MAPS_API_KEY</code> в .env
-                (см. README).
-              </p>
-            )}
-          </div>
-        </div>
-      )}
       {showDrivingSetupHint && (
         <div className="pointer-events-none absolute bottom-3 left-1/2 z-[5] max-w-[min(92vw,22rem)] -translate-x-1/2 rounded-xl border border-sky-200/90 bg-sky-50/95 px-3 py-2 text-center text-[11px] font-medium text-sky-950 shadow-sm">
           Сначала в панели слева укажите отправление — затем появится маршрут по дорогам.
-        </div>
-      )}
-      {roadRouteHint && (
-        <div className="pointer-events-none absolute bottom-3 left-1/2 z-[5] max-w-[min(94vw,24rem)] -translate-x-1/2">
-          <div className="pointer-events-auto max-h-[min(40vh,320px)] overflow-y-auto overscroll-contain rounded-xl border border-amber-200/90 bg-amber-50/98 px-3 py-2.5 text-left text-[10px] font-medium leading-snug text-amber-950 shadow-sm [scrollbar-width:thin]">
-            <p className="whitespace-pre-line">{roadRouteHint}</p>
-            {!String(import.meta.env.VITE_YANDEX_MAPS_API_KEY || '').trim() && (
-              <p className="mt-2 border-t border-amber-200/80 pt-2 text-[10px] text-amber-900/90">
-                В этой сборке ключ пустой при <code className="rounded bg-amber-100/80 px-1">npm run build</code> — задайте переменную до сборки образа.
-              </p>
-            )}
-          </div>
         </div>
       )}
       <div
