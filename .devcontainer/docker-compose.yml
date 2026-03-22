@@ -1,0 +1,39 @@
+services:
+  devcontainer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ..:/workspace:cached
+    command: sleep infinity
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: turizm
+      DB_USER: turizm
+      DB_PASSWORD: turizm
+      DATABASE_URL: postgres://turizm:turizm@db:5432/turizm
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-django-secret}
+      CORS_ALLOWED_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: turizm
+      POSTGRES_USER: turizm
+      POSTGRES_PASSWORD: turizm
+    volumes:
+      - turizm_devcontainer_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U turizm -d turizm"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  turizm_devcontainer_pg:

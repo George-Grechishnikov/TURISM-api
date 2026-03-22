@@ -41,13 +41,34 @@
       "problemMatcher": []
     },
     {
-      "label": "Docker: seed_demo",
+      "label": "Dev: Go API (server)",
       "type": "shell",
-      "command": "docker compose exec backend python manage.py seed_demo",
+      "command": "go run ./cmd/turizm",
       "options": {
-        "cwd": "${workspaceFolder}"
+        "cwd": "${workspaceFolder}/server"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": ["$go"]
+    },
+    {
+      "label": "Dev: Vite (frontend)",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
       },
       "group": "none",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
       "problemMatcher": []
     }
   ]
