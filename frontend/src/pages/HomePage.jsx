@@ -97,12 +97,90 @@ export function HomePage() {
         </div>
       </div>
 
-      <section id="about" className="mx-auto max-w-3xl scroll-mt-24 px-6 py-16 text-stone-800">
-        <h2 className="text-2xl font-bold text-wine-900">О нас</h2>
-        <p className="mt-4 leading-relaxed">
-          Етерниум помогает собрать винный маршрут по Краснодарскому краю: короткий опрос, карта с остановками и
-          подсказки с учётом погоды. Данные о точках обновляются из каталога виноделен.
-        </p>
+      <section
+        id="about"
+        className="scroll-mt-24 border-t border-stone-200/80 bg-gradient-to-b from-[#faf7f2] to-white px-6 py-20 font-['Montserrat'] text-stone-800"
+      >
+        <div className="mx-auto max-w-4xl">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-wine-700/90">О нас</p>
+          <h2 className="mt-2 text-3xl font-bold tracking-tight text-wine-950 md:text-4xl">
+            Етерниум — сервис готовых винных маршрутов по Кубани
+          </h2>
+          <p className="mt-6 text-lg leading-relaxed text-stone-700">
+            Мы делаем так, чтобы не тратить вечер на бесконечные вкладки и таблицы. Вы выбираете формат — короткий опрос
+            или пошаговый разговор с ИИ — а мы предлагаем цепочку виноделен и сервисных точек на карте, с подсказками по
+            погоде и ориентиром по бюджету. Каталог мест опирается на открытые данные и аккуратно сверённые координаты;
+            окончательные цены и бронирование всегда уточняйте у самой винодельни.
+          </p>
+
+          <h3 className="mt-12 text-xl font-bold text-wine-900">Что вы можете сделать на сайте</h3>
+          <ul className="mt-5 grid gap-4 sm:grid-cols-2">
+            {[
+              {
+                t: 'Маршрут по опросу',
+                d: 'Ответьте на вопросы о компании, настроении, длительности и бюджете — мы подберём винодельни с учётом ваших рамок и дат поездки.',
+              },
+              {
+                t: 'Последовательный тур с ИИ',
+                d: 'Соберите маршрут шаг за шагом: сначала первая точка, затем добавляйте остановки с карты или из подсказок ассистента.',
+              },
+              {
+                t: 'Карта и навигация',
+                d: 'Все остановки на Яндекс.Картах, линия по дорогам от выбранной точки «откуда едем», ссылки в навигатор по отрезкам.',
+              },
+              {
+                t: 'ИИ-сомелье',
+                d: 'Три коротких вопроса о вине и цели визита — и подборка виноделен с объяснением; понравившееся можно сразу добавить в маршрут.',
+              },
+              {
+                t: 'Каталог винодельен',
+                d: 'Раздел «Винодельни» — список точек с фото и ориентиром по типичной стоимости визита (оценка для фильтра, не оферта).',
+              },
+              {
+                t: 'Сохранить и вернуться',
+                d: 'После сборки маршрута в адресе появляется ссылка с ?route=… — откройте её в том же браузере, чтобы продолжить с того же плана.',
+              },
+            ].map((item) => (
+              <li
+                key={item.t}
+                className="rounded-2xl border border-stone-200/90 bg-white/80 p-5 shadow-sm ring-1 ring-stone-100/80"
+              >
+                <p className="font-bold text-wine-950">{item.t}</p>
+                <p className="mt-2 text-sm leading-relaxed text-stone-600">{item.d}</p>
+              </li>
+            ))}
+          </ul>
+
+          <h3 className="mt-12 text-xl font-bold text-wine-900">Для кого это</h3>
+          <p className="mt-4 leading-relaxed text-stone-700">
+            Для путешественников, которые хотят за один вечер спланировать выходные или отпуск по винным точкам Краснодарского
+            края и соседних регионов, не разбираясь в десятках сайтов вручную. Для команд и друзей, которым важно согласовать
+            ритм поездки — от спокойной дегустации до насыщенного маршрута.
+          </p>
+
+          <p className="mt-10 rounded-2xl border border-wine-200/60 bg-wine-50/50 px-5 py-4 text-sm leading-relaxed text-wine-950/90">
+            <strong className="font-semibold">Честно о продукте.</strong> Сервис развивается как демонстрационная платформа
+            (хакатон / прототип): расстояния между точками считаются по прямой для подбора порядка остановок, тексты маршрута
+            и сомелье могут идти через облачные модели или запасной сценарий без них. Мы улучшаем логику и контент по мере
+            развития проекта.
+          </p>
+
+          <div className="mt-10 flex flex-wrap gap-3">
+            <Link
+              to="/quiz"
+              onClick={leaveSequentialAiForQuiz}
+              className="inline-flex items-center justify-center rounded-full bg-wine-800 px-6 py-3 text-sm font-bold uppercase tracking-wide text-white shadow-md transition hover:bg-wine-900"
+            >
+              Собрать маршрут
+            </Link>
+            <Link
+              to="/places"
+              className="inline-flex items-center justify-center rounded-full border border-wine-300 bg-white px-6 py-3 text-sm font-bold uppercase tracking-wide text-wine-900 transition hover:bg-wine-50"
+            >
+              Каталог винодельен
+            </Link>
+          </div>
+        </div>
       </section>
       <section id="contact" className="border-t border-stone-200 bg-stone-50 px-6 py-16 scroll-mt-24">
         <div className="mx-auto max-w-3xl">
