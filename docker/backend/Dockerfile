@@ -4,9 +4,9 @@ FROM golang:1.22-alpine AS build
 ARG GOPROXY=https://proxy.golang.org,direct
 ENV GOPROXY=${GOPROXY}
 WORKDIR /src
-# go.sum в репо может отсутствовать — tidy создаёт его в образе до копирования кода
-COPY server/go.mod ./
-RUN go mod tidy
+# go.sum в репо обязателен: второй COPY server/ иначе затирает go.sum из предыдущего слоя BuildKit
+COPY server/go.mod server/go.sum ./
+RUN go mod download
 COPY server/ ./
 RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /turizm ./cmd/turizm/
 
