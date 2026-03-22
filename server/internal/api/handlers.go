@@ -135,6 +135,15 @@ func (s *Server) handleRouteBuild(w http.ResponseWriter, r *http.Request) {
 	if body.MaxLegKm != nil && *body.MaxLegKm >= 5 && *body.MaxLegKm <= 120 {
 		maxLeg = *body.MaxLegKm
 	}
+	var winerySlugAllowlist []string
+	if len(body.DurationTags) > 0 {
+		if prof, ok := routeengine.ProfileForDurationTags(body.DurationTags); ok {
+			maxW = prof.MaxWineries
+			radius = prof.RouteRadiusKm
+			maxLeg = prof.MaxLegKm
+			winerySlugAllowlist = prof.WinerySlugAllowlist
+		}
+	}
 	inc := parseUUIDs(body.IncludePlaceIDs)
 	exc := parseUUIDs(body.ExcludePlaceIDs)
 
@@ -216,6 +225,7 @@ func (s *Server) handleRouteBuild(w http.ResponseWriter, r *http.Request) {
 	ordered := routeengine.ComposeRouteWithServices(
 		wineries, lodging, food, transfer,
 		body.ExtraTags, body.DurationTags, bad, weatherMode, maxW, radius, maxLeg,
+		winerySlugAllowlist,
 	)
 	if len(ordered) == 0 {
 		writeErr(w, 400, "Нет опубликованных винодельни для маршрута (category=winery).")

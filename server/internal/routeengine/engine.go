@@ -219,11 +219,39 @@ func pickService(fromUser, fromDB []models.Place, anchorLat, anchorLon float64, 
 func skipLodgingForDuration(durationTags []string) bool {
 	norm := make(map[string]struct{})
 	for _, t := range durationTags {
-		norm[strings.ToLower(t)] = struct{}{}
+		norm[strings.TrimSpace(strings.ToLower(t))] = struct{}{}
 	}
-	_, a := norm["на день"]
-	_, b := norm["только вечер"]
-	return a || b
+	if _, a := norm["на день"]; a {
+		return true
+	}
+	if _, b := norm["только вечер"]; b {
+		return true
+	}
+	// Квиз: одиночный тег «День» — без ночёвки в маршруте.
+	if _, d := norm["день"]; d {
+		return true
+	}
+	return false
+}
+
+func filterWineryPoolBySlugAllowlist(pool []models.Place, allow []string) []models.Place {
+	if len(allow) == 0 || len(pool) == 0 {
+		return pool
+	}
+	want := make(map[string]struct{}, len(allow))
+	for _, s := range allow {
+		want[strings.ToLower(strings.TrimSpace(s))] = struct{}{}
+	}
+	var out []models.Place
+	for _, p := range pool {
+		if _, ok := want[strings.ToLower(strings.TrimSpace(p.Slug))]; ok {
+			out = append(out, p)
+		}
+	}
+	if len(out) >= 2 {
+		return out
+	}
+	return pool
 }
 
 func longestLegMidpoint(coords [][2]float64) (float64, float64, bool) {
@@ -245,6 +273,7 @@ func longestLegMidpoint(coords [][2]float64) (float64, float64, bool) {
 }
 
 // ComposeRouteWithServices mirrors Django route_engine.compose_route_with_services.
+// winerySlugAllowlist — опционально: если в пересечении с пулом ≥2 виноделен, сужаем «заготовку».
 func ComposeRouteWithServices(
 	wineries, lodgingCandidates, foodCandidates, transferCandidates []models.Place,
 	extraTags, durationTags []string,
@@ -252,6 +281,7 @@ func ComposeRouteWithServices(
 	weatherMode string,
 	maxWineries int,
 	routeRadiusKm, maxLegKm float64,
+	winerySlugAllowlist []string,
 ) []models.Place {
 	slat, slon := DefaultStartLat, DefaultStartLon
 	pool := filterPlacesWithinRadius(wineries, slat, slon, routeRadiusKm)
@@ -261,6 +291,7 @@ func ComposeRouteWithServices(
 	if len(pool) == 0 {
 		pool = append([]models.Place{}, wineries...)
 	}
+	pool = filterWineryPoolBySlugAllowlist(pool, winerySlugAllowlist)
 	serviceRadius := math.Max(routeRadiusKm, maxLegKm*2.5)
 	clat, clon := centroidPlaces(pool)
 	lodgingCandidates = filterServicesForCluster(lodgingCandidates, clat, clon, serviceRadius)
