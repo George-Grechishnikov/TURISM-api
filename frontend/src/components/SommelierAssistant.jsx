@@ -80,8 +80,12 @@ export function SommelierAssistant() {
   const route = useTripStore((s) => s.route)
   const routePlaces = useTripStore((s) => s.places)
   const patching = useTripStore((s) => s.patching)
+  const loadingRoute = useTripStore((s) => s.loading)
   const addStop = useTripStore((s) => s.addStop)
+  const startRouteWithPlace = useTripStore((s) => s.startRouteWithPlace)
   const [open, setOpen] = useState(false)
+  const [panelOffset, setPanelOffset] = useState({ x: 0, y: 0 })
+  const panelOffsetRef = useRef({ x: 0, y: 0 })
   const [step, setStep] = useState(0)
   const answersRef = useRef({ wine_type: null, wine_style: null, visit_goal: null })
   const [loading, setLoading] = useState(false)
@@ -127,6 +131,38 @@ export function SommelierAssistant() {
     }
   }, [openRequestId, signalCloseSequentialAiChat])
 
+  useEffect(() => {
+    panelOffsetRef.current = panelOffset
+  }, [panelOffset])
+
+  useEffect(() => {
+    if (!open) setPanelOffset({ x: 0, y: 0 })
+  }, [open])
+
+  const beginPanelDrag = useCallback((e) => {
+    if (e.button !== 0) return
+    if (e.target.closest('button, a, input, textarea, select')) return
+    e.preventDefault()
+    const ox = panelOffsetRef.current.x
+    const oy = panelOffsetRef.current.y
+    const sx = e.clientX
+    const sy = e.clientY
+    const onMove = (ev) => {
+      setPanelOffset({
+        x: ox + ev.clientX - sx,
+        y: oy + ev.clientY - sy,
+      })
+    }
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
+  }, [])
+
   const runRecommend = async (finalAnswers) => {
     setLoading(true)
     setError(null)
@@ -166,14 +202,18 @@ export function SommelierAssistant() {
   const routeIdSet = new Set((routePlaces || []).map((p) => String(p.id)))
 
   const handleAddToRoute = async (placeId) => {
-    if (!route || !placeId || patching) return
+    if (!placeId || patching || loadingRoute) return
     if (routeIdSet.has(String(placeId))) return
     setAddError(null)
     setAddingId(String(placeId))
     try {
-      const res = await addStop(placeId)
-      if (res === null) {
-        setAddError('Маршрут устарел — нажмите «Добавить» ещё раз.')
+      if (!route) {
+        await startRouteWithPlace(placeId)
+      } else {
+        const res = await addStop(placeId)
+        if (res === null) {
+          setAddError('Маршрут устарел — нажмите «Добавить» ещё раз.')
+        }
       }
     } catch (e) {
       setAddError(e?.response?.data?.detail || e?.message || 'Не удалось добавить в маршрут')
@@ -252,12 +292,23 @@ export function SommelierAssistant() {
 
       {open && (
         <div
-          style={{ pointerEvents: 'auto', position: 'absolute', bottom: 168, right: 20, zIndex: 3 }}
+          style={{
+            pointerEvents: 'auto',
+            position: 'absolute',
+            bottom: 168,
+            right: 20,
+            zIndex: 3,
+            transform: `translate(${panelOffset.x}px, ${panelOffset.y}px)`,
+          }}
           className="flex w-[min(calc(100vw-2.5rem),400px)] max-h-[min(72dvh,560px)] flex-col overflow-hidden rounded-2xl border border-stone-200/90 bg-[#faf7f2]/98 shadow-card-lg backdrop-blur-md"
           role="dialog"
           aria-labelledby="sommelier-title"
         >
-          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-stone-200/80 bg-white/80 px-3 py-2.5">
+          <div
+            className="flex shrink-0 cursor-grab select-none touch-none items-center justify-between gap-2 border-b border-stone-200/80 bg-white/80 px-3 py-2.5 active:cursor-grabbing"
+            onPointerDown={beginPanelDrag}
+            role="presentation"
+          >
             <div className="min-w-0">
               <h2 id="sommelier-title" className="font-display text-sm font-semibold text-wine-950">
                 Виртуальный сомелье
@@ -383,7 +434,12 @@ export function SommelierAssistant() {
                           <p className="font-semibold text-wine-900 text-sm">{r.name}</p>
                           <button
                             type="button"
-                            disabled={!route || patching || addingId === String(r.place_id) || routeIdSet.has(String(r.place_id))}
+                            disabled={
+                              patching ||
+                              loadingRoute ||
+                              addingId === String(r.place_id) ||
+                              routeIdSet.has(String(r.place_id))
+                            }
                             onClick={() => void handleAddToRoute(r.place_id)}
                             className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-wine-300 bg-wine-50 text-sm font-bold leading-none text-wine-900 transition hover:bg-wine-100 disabled:opacity-40"
                             title={
@@ -391,7 +447,7 @@ export function SommelierAssistant() {
                                 ? 'Уже в маршруте'
                                 : route
                                   ? 'Добавить в маршрут'
-                                  : 'Сначала соберите маршрут'
+                                  : 'Начать маршрут с этой точки'
                             }
                             aria-label="Добавить винодельню в маршрут"
                           >
@@ -399,24 +455,26 @@ export function SommelierAssistant() {
                           </button>
                         </div>
                         <p className="mt-1 text-xs text-stone-600 leading-snug">{r.reason}</p>
-                        {route ? (
-                          <div className="mt-2">
-                            {routeIdSet.has(String(r.place_id)) ? (
-                              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-200">
-                                Уже в маршруте
-                              </span>
-                            ) : (
-                              <button
-                                type="button"
-                                disabled={patching || addingId === String(r.place_id)}
-                                onClick={() => void handleAddToRoute(r.place_id)}
-                                className="inline-flex items-center rounded-lg border border-wine-200 bg-wine-50 px-2.5 py-1.5 text-[11px] font-semibold text-wine-900 transition hover:bg-wine-100 disabled:opacity-50"
-                              >
-                                {addingId === String(r.place_id) ? 'Добавляю…' : '+ В маршрут'}
-                              </button>
-                            )}
-                          </div>
-                        ) : null}
+                        <div className="mt-2">
+                          {routeIdSet.has(String(r.place_id)) ? (
+                            <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-200">
+                              Уже в маршруте
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={patching || loadingRoute || addingId === String(r.place_id)}
+                              onClick={() => void handleAddToRoute(r.place_id)}
+                              className="inline-flex items-center rounded-lg border border-wine-200 bg-wine-50 px-2.5 py-1.5 text-[11px] font-semibold text-wine-900 transition hover:bg-wine-100 disabled:opacity-50"
+                            >
+                              {addingId === String(r.place_id)
+                                ? 'Добавляю…'
+                                : route
+                                  ? '+ В маршрут'
+                                  : '+ Начать маршрут здесь'}
+                            </button>
+                          )}
+                        </div>
                       </li>
                     ))}
                   </ul>
