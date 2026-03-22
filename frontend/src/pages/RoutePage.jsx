@@ -8,6 +8,8 @@ import { RouteMap } from '../components/RouteMap'
 import { SequentialAiChatCard } from '../components/SequentialAiChatCard'
 import { fetchPlaces } from '../lib/api'
 import { primaryPhotoUrl } from '../lib/placePhoto'
+import { geocodeSearchQuery } from '../lib/yandexGeocode'
+import { buildDrivingNavLegs, yandexMapsDrivingUrl } from '../lib/yandexNavLink'
 import { ROUTE_ENTRY_SEQUENTIAL_AI } from '../lib/routeEntry'
 import { hasSequentialAiTourSession } from '../lib/sequentialAiSession'
 import { useSommelierUiStore } from '../store/sommelierUiStore'
@@ -85,8 +87,15 @@ export function RoutePage() {
     clearSequentialAiChat,
     sequentialAiMode,
     sequentialAiChatActive,
+    drivingRouteStart,
+    setDrivingRouteStart,
+    clearDrivingRouteStart,
   } = useTripStore()
   const [allPlaces, setAllPlaces] = useState([])
+  const [drivingGeoHint, setDrivingGeoHint] = useState(null)
+  const [addressSearch, setAddressSearch] = useState('')
+  const [geocodeLoading, setGeocodeLoading] = useState(false)
+  const [geocodeError, setGeocodeError] = useState(null)
   const [detailId, setDetailId] = useState(null)
   const [previewPlace, setPreviewPlace] = useState(null)
   const [aboutRouteOpen, setAboutRouteOpen] = useState(false)
@@ -162,6 +171,50 @@ export function RoutePage() {
   const optionalPlaces = useMemo(
     () => allPlaces.filter((p) => !routeIds.has(p.id)),
     [allPlaces, routeIds],
+  )
+
+  const pickDrivingGeo = useCallback(() => {
+    setDrivingGeoHint(null)
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setDrivingGeoHint('Геолокация недоступна в браузере')
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setDrivingRouteStart({
+          kind: 'point',
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          label: 'Вы здесь',
+        })
+      },
+      () =>
+        setDrivingGeoHint('Не удалось определить место — разрешите доступ или введите адрес вручную'),
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 60000 },
+    )
+  }, [setDrivingRouteStart])
+
+  const submitAddressForDriving = useCallback(async () => {
+    setGeocodeError(null)
+    setGeocodeLoading(true)
+    try {
+      const r = await geocodeSearchQuery(addressSearch)
+      setDrivingRouteStart({
+        kind: 'point',
+        latitude: r.latitude,
+        longitude: r.longitude,
+        label: r.label,
+      })
+    } catch (e) {
+      setGeocodeError(e?.message || 'Не удалось найти адрес')
+    } finally {
+      setGeocodeLoading(false)
+    }
+  }, [addressSearch, setDrivingRouteStart])
+
+  const drivingNavLegs = useMemo(
+    () => (drivingRouteStart ? buildDrivingNavLegs(drivingRouteStart, places) : []),
+    [drivingRouteStart, places],
   )
 
   const weather = route?.weather_snapshot
@@ -347,6 +400,8 @@ export function RoutePage() {
         <RouteMap
           places={places}
           routeColor={route.weather_snapshot?.route_color}
+          drivingRouteStart={drivingRouteStart}
+          showDrivingSetupHint={places.length >= 1 && !drivingRouteStart}
           onMarkerHoverPreview={setPreviewPlace}
           onMarkerHoverEnd={() => setPreviewPlace(null)}
           onMarkerClick={(id) => {
@@ -389,6 +444,135 @@ export function RoutePage() {
             </div>
           </div>
         </div>
+
+        {places.length >= 1 && (
+          <div className="route-levitate shrink-0 rounded-[22px] border border-stone-200/90 bg-white/95 px-3 py-2.5 text-left shadow-sm">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-stone-600">Откуда выезжаем</p>
+            <p className="mt-1 text-[10px] leading-snug text-stone-600">
+              Как в навигаторе: сначала старт (геолокация или адрес), затем линия по дорогам на карте и ссылки в Яндекс.Карты по
+              каждому отрезку.
+            </p>
+            {!drivingRouteStart ? (
+              <div className="mt-2 space-y-2">
+                <button
+                  type="button"
+                  onClick={() => void pickDrivingGeo()}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-wine-600 to-wine-800 py-2.5 text-[11px] font-semibold text-white shadow-md transition hover:brightness-110"
+                >
+                  <span aria-hidden>📍</span>
+                  Определить по геолокации
+                </button>
+                {drivingGeoHint ? (
+                  <p className="text-[10px] leading-snug text-red-700">{drivingGeoHint}</p>
+                ) : null}
+                <form
+                  className="space-y-1"
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    void submitAddressForDriving()
+                  }}
+                >
+                  <span className="block text-[10px] font-semibold text-stone-500">Или введите адрес / город</span>
+                  <div className="flex gap-1.5">
+                    <input
+                      type="search"
+                      enterKeyHint="search"
+                      value={addressSearch}
+                      onChange={(e) => {
+                        setAddressSearch(e.target.value)
+                        setGeocodeError(null)
+                      }}
+                      placeholder="Например: Краснодар, ул. Красная, 1"
+                      className="min-w-0 flex-1 rounded-xl border border-stone-200 bg-white px-2.5 py-2 text-[11px] text-stone-900 placeholder:text-stone-400"
+                      autoComplete="street-address"
+                    />
+                    <button
+                      type="submit"
+                      disabled={geocodeLoading || !addressSearch.trim()}
+                      className="shrink-0 rounded-xl border border-wine-300 bg-wine-50 px-3 py-2 text-[11px] font-semibold text-wine-900 transition hover:bg-wine-100 disabled:opacity-40"
+                    >
+                      {geocodeLoading ? '…' : 'Найти'}
+                    </button>
+                  </div>
+                </form>
+                {geocodeError ? <p className="text-[10px] leading-snug text-red-700">{geocodeError}</p> : null}
+                <div className="flex flex-wrap gap-1.5 border-t border-stone-100 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDrivingGeoHint(null)
+                      setGeocodeError(null)
+                      setDrivingRouteStart({ kind: 'stops' })
+                    }}
+                    className="rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 text-[10px] font-medium text-stone-700 transition hover:border-wine-300"
+                  >
+                    Только между остановками
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDrivingGeoHint(null)
+                      setGeocodeError(null)
+                      setDrivingRouteStart({
+                        kind: 'point',
+                        latitude: 45.0355,
+                        longitude: 38.9753,
+                        label: 'Краснодар (центр)',
+                      })
+                    }}
+                    className="rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 text-[10px] font-medium text-stone-700 transition hover:border-wine-300"
+                  >
+                    Краснодар (центр)
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-2 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="min-w-0 text-[11px] font-medium text-stone-800">
+                    {drivingRouteStart.kind === 'stops'
+                      ? 'Линия только между остановками'
+                      : drivingRouteStart.label || 'Точка отправления'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearDrivingRouteStart()
+                      setDrivingGeoHint(null)
+                      setGeocodeError(null)
+                      setAddressSearch('')
+                    }}
+                    className="shrink-0 rounded-lg px-2 py-1 text-[10px] font-semibold text-wine-800 ring-1 ring-wine-200/80 transition hover:bg-wine-50"
+                  >
+                    Изменить
+                  </button>
+                </div>
+                {drivingNavLegs.length > 0 ? (
+                  <div className="border-t border-stone-200 pt-2">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-stone-500">Навигация</p>
+                    <p className="mt-0.5 text-[9px] leading-snug text-stone-500">
+                      Пошаговый маршрут и голос — в приложении или на сайте Яндекса после открытия ссылки.
+                    </p>
+                    <ul className="mt-2 max-h-[min(11rem,40dvh)] space-y-1 overflow-y-auto overscroll-contain pr-0.5 text-[10px] [scrollbar-width:thin]">
+                      {drivingNavLegs.map((leg, i) => (
+                        <li key={`${leg.fromLat}-${leg.fromLon}-${leg.toLat}-${leg.toLon}-${i}`}>
+                          <a
+                            href={yandexMapsDrivingUrl(leg.fromLat, leg.fromLon, leg.toLat, leg.toLon)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium text-wine-800 underline decoration-wine-300 underline-offset-2 hover:text-wine-950"
+                          >
+                            {i + 1}. До «{leg.toLabel}»
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="route-levitate shrink-0 overflow-hidden rounded-[22px]">
           <button

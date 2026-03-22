@@ -33,6 +33,14 @@ export const useTripStore = create((set, get) => ({
   sequentialAiMode: false,
   /** Показать карточку «AI-Чат» на /route после входа с главной (последовательный тур) */
   sequentialAiChatActive: false,
+  /**
+   * Точка «откуда едем» для линии по дорогам на карте (Яндекс MultiRoute).
+   * Пока null — линию не строим (только метки остановок).
+   */
+  drivingRouteStart: null,
+
+  setDrivingRouteStart: (point) => set({ drivingRouteStart: point }),
+  clearDrivingRouteStart: () => set({ drivingRouteStart: null }),
 
   toggleTag: (field, tag) => {
     const cur = get()[field]
@@ -66,6 +74,7 @@ export const useTripStore = create((set, get) => ({
         route: data.route,
         places: data.places,
         loading: false,
+        drivingRouteStart: null,
       })
       return data
     } catch (e) {
@@ -97,6 +106,7 @@ export const useTripStore = create((set, get) => ({
         places: data.places,
         loading: false,
         sequentialAiMode: false,
+        drivingRouteStart: null,
       })
       return data
     } catch (e) {
@@ -131,6 +141,7 @@ export const useTripStore = create((set, get) => ({
             places: [],
             error: null,
             patching: false,
+            drivingRouteStart: null,
           })
           return null
         }
@@ -155,6 +166,7 @@ export const useTripStore = create((set, get) => ({
       patching: false,
       sequentialAiMode: true,
       sequentialAiChatActive: true,
+      drivingRouteStart: null,
     })
   },
 }))

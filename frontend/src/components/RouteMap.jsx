@@ -46,6 +46,31 @@ function dedupeRouteCoords(coords) {
   return out
 }
 
+/**
+ * Опорные точки для MultiRoute.
+ * drivingRouteStart: null | { kind: 'stops' } | { kind: 'point', latitude, longitude }
+ */
+function drivingReferencePoints(places, drivingRouteStart) {
+  if (!drivingRouteStart || !places.length) return []
+  const stopCoords = dedupeRouteCoords(
+    places.map((p) => [Number(p.latitude), Number(p.longitude)]),
+  )
+  if (!stopCoords.length) return []
+  if (drivingRouteStart.kind === 'stops') {
+    return stopCoords.length >= 2 ? stopCoords : []
+  }
+  if (drivingRouteStart.kind !== 'point') return []
+  const lat = Number(drivingRouteStart.latitude)
+  const lon = Number(drivingRouteStart.longitude)
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return []
+  const start = [lat, lon]
+  const first = stopCoords[0]
+  const sameAsFirst =
+    first && Math.abs(first[0] - start[0]) < 1e-5 && Math.abs(first[1] - start[1]) < 1e-5
+  if (sameAsFirst) return stopCoords.length >= 2 ? stopCoords : []
+  return dedupeRouteCoords([start, ...stopCoords])
+}
+
 /** Параметры маршрутизатора: только автомобиль по дорогам ОД (не пешеход / не «птичка»). */
 function drivingRouteParams() {
   return {
@@ -250,7 +275,16 @@ function fitMapViewport(map) {
   }
 }
 
-export function RouteMap({ places, routeColor, onMarkerClick, onMarkerHoverPreview, onMarkerHoverEnd, className = '' }) {
+export function RouteMap({
+  places,
+  routeColor,
+  drivingRouteStart = null,
+  showDrivingSetupHint = false,
+  onMarkerClick,
+  onMarkerHoverPreview,
+  onMarkerHoverEnd,
+  className = '',
+}) {
   const containerRef = useRef(null)
   const mapInstanceRef = useRef(null)
   const clickRef = useRef(onMarkerClick)
@@ -343,10 +377,8 @@ export function RouteMap({ places, routeColor, onMarkerClick, onMarkerHoverPrevi
 
         const stroke = routeColor || '#7c2944'
         let routeGeo = null
-        if (places.length >= 2) {
-          const refPoints = dedupeRouteCoords(
-            places.map((p) => [Number(p.latitude), Number(p.longitude)]),
-          )
+        const refPoints = drivingReferencePoints(places, drivingRouteStart)
+        if (refPoints.length >= 2) {
           try {
             const built = await buildRoadOnlyRoute(ymaps, map, refPoints, stroke, () => cancelled)
             if (cancelled) return
@@ -366,6 +398,31 @@ export function RouteMap({ places, routeColor, onMarkerClick, onMarkerHoverPrevi
           } catch {
             if (!cancelled) setRoadRouteHint('Маршрутизация по дорогам недоступна.')
           }
+        }
+
+        if (
+          drivingRouteStart?.kind === 'point' &&
+          Number.isFinite(Number(drivingRouteStart.latitude)) &&
+          Number.isFinite(Number(drivingRouteStart.longitude))
+        ) {
+          const slat = Number(drivingRouteStart.latitude)
+          const slon = Number(drivingRouteStart.longitude)
+          const cap =
+            typeof drivingRouteStart.label === 'string' && drivingRouteStart.label.trim()
+              ? drivingRouteStart.label.trim()
+              : 'Старт'
+          const startPm = new ymaps.Placemark(
+            [slat, slon],
+            { iconCaption: cap },
+            {
+              preset: 'islands#greenCircleIcon',
+              iconColor: '#166534',
+            },
+          )
+          startPm.events.add('click', () => {
+            hoverEndRef.current?.()
+          })
+          map.geoObjects.add(startPm)
         }
 
         places.forEach((p) => {
@@ -442,7 +499,7 @@ export function RouteMap({ places, routeColor, onMarkerClick, onMarkerHoverPrevi
     return () => {
       cancelled = true
     }
-  }, [places, mapReady, routeColor])
+  }, [places, mapReady, routeColor, drivingRouteStart])
 
   useEffect(() => {
     const map = mapInstanceRef.current
@@ -466,6 +523,11 @@ export function RouteMap({ places, routeColor, onMarkerClick, onMarkerHoverPrevi
               </p>
             )}
           </div>
+        </div>
+      )}
+      {showDrivingSetupHint && (
+        <div className="pointer-events-none absolute bottom-3 left-1/2 z-[5] max-w-[min(92vw,22rem)] -translate-x-1/2 rounded-xl border border-sky-200/90 bg-sky-50/95 px-3 py-2 text-center text-[11px] font-medium text-sky-950 shadow-sm">
+          Сначала в панели слева укажите отправление — затем появится маршрут по дорогам.
         </div>
       )}
       {roadRouteHint && (
