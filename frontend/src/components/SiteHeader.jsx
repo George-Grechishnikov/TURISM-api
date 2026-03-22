@@ -55,7 +55,7 @@ export function SiteHeader({ variant = 'bar', rightSlot }) {
       <a href={isHome ? '#about' : '/#about'} className={variant === 'hero' ? linkHero : linkBar}>
         о нас
       </a>
-      <Link to="/quiz" className={variant === 'hero' ? linkHero : linkBar}>
+      <Link to="/routes" className={variant === 'hero' ? linkHero : linkBar}>
         маршруты
       </Link>
       <Link to="/places" className={variant === 'hero' ? linkHero : linkBar}>

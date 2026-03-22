@@ -136,6 +136,10 @@ export function HomePage() {
           <ul className="mt-5 grid gap-4 sm:grid-cols-2">
             {[
               {
+                t: 'Готовые маршруты',
+                d: 'Раздел «Маршруты» — типовые сценарии по Кубани с винодельнями, ориентирами по ночёвке и еде; одна кнопка подставляет теги в опрос.',
+              },
+              {
                 t: 'Маршрут по опросу',
                 d: 'Ответьте на вопросы о компании, настроении, длительности и бюджете — мы подберём винодельни с учётом ваших рамок и дат поездки.',
               },
@@ -197,6 +201,12 @@ export function HomePage() {
               className="inline-flex items-center justify-center rounded-full border border-wine-300 bg-white px-6 py-3 text-sm font-bold uppercase tracking-wide text-wine-900 transition hover:bg-wine-50"
             >
               Каталог винодельен
+            </Link>
+            <Link
+              to="/routes"
+              className="inline-flex items-center justify-center rounded-full border border-wine-300 bg-white px-6 py-3 text-sm font-bold uppercase tracking-wide text-wine-900 transition hover:bg-wine-50"
+            >
+              Готовые маршруты
             </Link>
           </div>
         </div>

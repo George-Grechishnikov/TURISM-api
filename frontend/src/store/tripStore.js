@@ -3,6 +3,7 @@ import { create } from 'zustand'
 import { buildRoute as buildRouteApi, patchRoute as patchRouteApi } from '../lib/api'
 import { clearRouteQueryParam, replaceRouteQueryParam } from '../lib/routeQuery'
 import { clearSequentialAiTourSession, markSequentialAiTourSession } from '../lib/sequentialAiSession'
+import { ROUTE_PRESETS } from '../data/readyRoutes'
 import { resolveTripGeoIfAsked } from '../lib/tripGeo'
 
 function isoDateLocal(d = new Date()) {
@@ -75,6 +76,22 @@ export const useTripStore = create((set, get) => ({
   clearSequentialAiChat: () => {
     clearSequentialAiTourSession()
     set({ sequentialAiChatActive: false })
+  },
+
+  /** Подставить теги опроса из готового сценария (раздел «Маршруты»). */
+  applyReadyRoutePreset: (presetId) => {
+    const p = ROUTE_PRESETS[presetId]
+    if (!p) return false
+    clearSequentialAiTourSession()
+    set({
+      companionsTags: [...(p.companionsTags || [])],
+      moodTags: [...(p.moodTags || [])],
+      durationTags: [...(p.durationTags || [])],
+      extraTags: [...(p.extraTags || [])],
+      sequentialAiMode: false,
+      sequentialAiChatActive: false,
+    })
+    return true
   },
 
   buildRoute: async () => {

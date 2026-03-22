@@ -8,6 +8,7 @@ import { useAuthStore } from './store/authStore'
 import { HomePage } from './pages/HomePage'
 import { PlacesPage } from './pages/PlacesPage'
 import { QuizPage } from './pages/QuizPage'
+import { ReadyRoutesPage } from './pages/ReadyRoutesPage'
 import { RoutePage } from './pages/RoutePage'
 
 function useClientSignals() {
@@ -41,7 +42,7 @@ export default function App() {
   )
 }
 
-const SOMMELIER_PATHS = new Set(['/', '/quiz', '/route', '/places'])
+const SOMMELIER_PATHS = new Set(['/', '/quiz', '/route', '/places', '/routes'])
 
 function AppRoutes() {
   const location = useLocation()
@@ -56,6 +57,7 @@ function AppRoutes() {
         <Route path="/quiz" element={<QuizPage />} />
         <Route path="/route" element={<RoutePage />} />
         <Route path="/places" element={<PlacesPage />} />
+        <Route path="/routes" element={<ReadyRoutesPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
