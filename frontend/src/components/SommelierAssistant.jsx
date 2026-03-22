@@ -8,7 +8,14 @@ import { useSommelierUiStore } from '../store/sommelierUiStore'
 import { useTripStore } from '../store/tripStore'
 
 /** Выше оверлеев Яндекс.Карт (часто 1e4–1e6); инлайн — не зависит от purge Tailwind */
-const LAYER_Z = 2147483000
+const LAYER_Z = 2147483646
+
+const fabLeft = () =>
+  typeof window !== 'undefined'
+    ? `max(16px, env(safe-area-inset-left, 0px))`
+    : '16px'
+const fabBottom = () =>
+  typeof window !== 'undefined' ? `max(20px, env(safe-area-inset-bottom, 0px))` : '20px'
 
 function sommelierPortalHost() {
   if (typeof document === 'undefined') return null
@@ -245,9 +252,10 @@ export function SommelierAssistant() {
         }}
         style={{
           pointerEvents: 'auto',
-          position: 'absolute',
-          bottom: 20,
-          right: 20,
+          position: 'fixed',
+          left: fabLeft(),
+          bottom: fabBottom(),
+          right: 'auto',
           zIndex: 2,
           width: 101,
           height: 130,
@@ -256,7 +264,7 @@ export function SommelierAssistant() {
           border: 'none',
           background: 'transparent',
           cursor: 'pointer',
-          filter: 'drop-shadow(0 6px 20px rgba(69, 21, 38, 0.22))',
+          filter: 'drop-shadow(0 4px 14px rgba(0, 0, 0, 0.35)) drop-shadow(0 6px 24px rgba(69, 21, 38, 0.45))',
         }}
         className="group relative transition hover:brightness-[1.03] hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-wine-500 focus-visible:ring-offset-2"
         aria-label={open ? 'Закрыть сомелье' : 'Виртуальный сомелье'}
@@ -294,9 +302,10 @@ export function SommelierAssistant() {
         <div
           style={{
             pointerEvents: 'auto',
-            position: 'absolute',
-            bottom: 168,
-            right: 20,
+            position: 'fixed',
+            left: fabLeft(),
+            bottom: `calc(168px + env(safe-area-inset-bottom, 0px))`,
+            right: 'auto',
             zIndex: 3,
             transform: `translate(${panelOffset.x}px, ${panelOffset.y}px)`,
           }}
