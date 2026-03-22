@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react'
 
 import aiChatChipIcon from '../assets/ai-chat-chip-icon.png'
 import { postSequentialChat } from '../lib/api'
+import { getCannedSequentialReply } from '../lib/sequentialChatCanned'
 import { useSommelierUiStore } from '../store/sommelierUiStore'
 import { useTripStore } from '../store/tripStore'
 
@@ -39,8 +40,18 @@ function ChatCloseIcon() {
   )
 }
 
-function MessageBubble({ role, text, usedAi }) {
+function assistantFootnote(replySource, usedAi) {
+  if (replySource === 'canned') return 'Готовый ответ'
+  if (replySource === 'yandex') return 'Яндекс GPT'
+  if (replySource === 'local') return 'Локальная подсказка'
+  if (usedAi === true) return 'Яндекс GPT'
+  if (usedAi === false) return 'Локальная подсказка'
+  return null
+}
+
+function MessageBubble({ role, text, usedAi, replySource }) {
   const isUser = role === 'user'
+  const foot = !isUser ? assistantFootnote(replySource, usedAi) : null
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div
@@ -57,10 +68,8 @@ function MessageBubble({ role, text, usedAi }) {
         >
           {text}
         </p>
-        {!isUser && usedAi != null && (
-          <p className="mt-2 text-[10px] font-bold uppercase tracking-wide text-stone-500">
-            {usedAi ? 'Яндекс GPT' : 'Локальная подсказка'}
-          </p>
+        {foot && (
+          <p className="mt-2 text-[10px] font-bold uppercase tracking-wide text-stone-500">{foot}</p>
         )}
       </div>
     </div>
@@ -155,7 +164,13 @@ function SequentialAiChatPanel({
           className="mx-auto flex min-h-0 w-full max-w-full flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-[15px] py-3 max-h-[min(420px,calc(100dvh-16rem))] [scrollbar-width:thin]"
         >
           {messages.map((m) => (
-            <MessageBubble key={m.id} role={m.role} text={m.text} usedAi={m.usedAi} />
+            <MessageBubble
+              key={m.id}
+              role={m.role}
+              text={m.text}
+              usedAi={m.usedAi}
+              replySource={m.replySource}
+            />
           ))}
           {sending && (
             <div className="flex justify-start">
@@ -253,8 +268,18 @@ export function SequentialAiChatCard() {
       setSendError(null)
       const history = messages.slice(-12).map((m) => ({ role: m.role, text: m.text }))
       const route_place_ids = (places || []).map((p) => p.id).filter(Boolean)
-      setSending(true)
       setMessages((prev) => [...prev, { id: nextId(), role: 'user', text }])
+
+      const canned = getCannedSequentialReply(text, places)
+      if (canned?.text) {
+        setMessages((prev) => [
+          ...prev,
+          { id: nextId(), role: 'assistant', text: canned.text, replySource: 'canned' },
+        ])
+        return
+      }
+
+      setSending(true)
       try {
         const data = await postSequentialChat({
           message: text,
@@ -262,8 +287,8 @@ export function SequentialAiChatCard() {
           history,
         })
         const reply = typeof data?.reply === 'string' ? data.reply : 'Не удалось разобрать ответ.'
-        const usedAi = Boolean(data?.used_ai)
-        setMessages((prev) => [...prev, { id: nextId(), role: 'assistant', text: reply, usedAi }])
+        const replySource = data?.used_ai ? 'yandex' : 'local'
+        setMessages((prev) => [...prev, { id: nextId(), role: 'assistant', text: reply, replySource }])
       } catch (e) {
         const detail = e.response?.data?.detail || e.message || 'Ошибка сети'
         setSendError(String(detail))
@@ -273,7 +298,7 @@ export function SequentialAiChatCard() {
             id: nextId(),
             role: 'assistant',
             text: 'Сейчас не получилось связаться с ассистентом. Проверьте соединение и попробуйте ещё раз.',
-            usedAi: false,
+            replySource: 'local',
           },
         ])
       } finally {
