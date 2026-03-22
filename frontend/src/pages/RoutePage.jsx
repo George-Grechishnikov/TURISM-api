@@ -5,7 +5,6 @@ import { PlaceDetailModal } from '../components/PlaceDetailModal'
 import { PlaceHoverCard } from '../components/PlaceHoverCard'
 import { PlacePhotoImg } from '../components/PlacePhotoImg'
 import { RouteMap } from '../components/RouteMap'
-import { SequentialAiChatCard } from '../components/SequentialAiChatCard'
 import { fetchPlaces, fetchRoute } from '../lib/api'
 import { primaryPhotoUrl } from '../lib/placePhoto'
 import { geocodeSearchQuery } from '../lib/yandexGeocode'
@@ -17,7 +16,7 @@ import {
 } from '../lib/yandexNavLink'
 import { ROUTE_ENTRY_SEQUENTIAL_AI } from '../lib/routeEntry'
 import { clearRouteQueryParam, isRouteIdString } from '../lib/routeQuery'
-import { clearSequentialAiTourSession, hasSequentialAiTourSession } from '../lib/sequentialAiSession'
+import { clearSequentialAiTourSession } from '../lib/sequentialAiSession'
 import { useSommelierUiStore } from '../store/sommelierUiStore'
 import { useTripStore } from '../store/tripStore'
 
@@ -114,7 +113,6 @@ export function RoutePage() {
     clearRouteSession,
     clearSequentialAiChat,
     sequentialAiMode,
-    sequentialAiChatActive,
     drivingRouteStart,
     setDrivingRouteStart,
     clearDrivingRouteStart,
@@ -225,12 +223,6 @@ export function RoutePage() {
     navigate(`${location.pathname}${location.search}`, { replace: true, state: {} })
   }, [location.state, location.pathname, location.search, navigate, clearRouteSession])
 
-  /** После F5 на /route: карточка AI-Чат, если тур начат с «Последовательный тур с AI» */
-  useEffect(() => {
-    if (!hasSequentialAiTourSession()) return
-    useTripStore.setState({ sequentialAiChatActive: true })
-  }, [])
-
   const routeIds = useMemo(() => new Set(places.map((p) => p.id)), [places])
   const optionalPlaces = useMemo(
     () => allPlaces.filter((p) => !routeIds.has(p.id)),
@@ -325,15 +317,9 @@ export function RoutePage() {
   const showSequentialEmptyStops =
     sequentialAiMode || location.state?.routeEntry === ROUTE_ENTRY_SEQUENTIAL_AI
 
-  const sequentialAiChat =
-    sequentialAiChatActive ? (
-      <SequentialAiChatCard />
-    ) : null
-
   if (!route) {
     return (
       <>
-        {sequentialAiChat}
         <div className="fixed inset-0 z-[5] flex flex-col bg-gradient-to-b from-stone-950 via-stone-900 to-stone-950">
         <div className="relative z-0 min-h-0 flex-1" style={{ minHeight: '40vh' }}>
           <RouteMap
@@ -502,7 +488,6 @@ export function RoutePage() {
 
   return (
     <>
-      {sequentialAiChat}
       <div className="fixed inset-0 z-[5] flex flex-col bg-gradient-to-b from-stone-950 via-stone-900 to-stone-950">
       <div className="relative z-0 min-h-0 flex-1" style={{ minHeight: '40vh' }}>
         <RouteMap
